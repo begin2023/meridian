@@ -1,0 +1,81 @@
+name: Build Unsigned Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build, for example v1.0.0
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Build ad-hoc signed app
+        env:
+          MERIDIAN_SIGN_IDENTITY: "-"
+        run: scripts/build-app.sh release
+
+      - name: Package release
+        run: scripts/package-release.sh "$RELEASE_TAG" unsigned
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Meridian-${{ env.RELEASE_TAG }}-macOS-arm64
+          path: |
+            dist/release/Meridian-*-macOS-arm64-unsigned.zip
+            dist/release/SHA256SUMS
+            dist/release/RELEASE_NOTES.md
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          ZIP="dist/release/Meridian-${VERSION}-macOS-arm64-unsigned.zip"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            IS_DRAFT="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"
+            if [[ "$IS_DRAFT" != "true" ]]; then
+              echo "release $RELEASE_TAG is already published; refusing to modify it" >&2
+              exit 1
+            fi
+            gh release upload "$RELEASE_TAG" "$ZIP" dist/release/SHA256SUMS --clobber
+            gh release edit "$RELEASE_TAG" \
+              --notes-file dist/release/RELEASE_NOTES.md \
+              --prerelease
+          else
+            gh release create "$RELEASE_TAG" "$ZIP" dist/release/SHA256SUMS \
+              --verify-tag \
+              --draft \
+              --prerelease \
+              --title "Meridian ${RELEASE_TAG#v}" \
+              --notes-file dist/release/RELEASE_NOTES.md
+          fi
