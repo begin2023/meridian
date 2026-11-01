@@ -30,6 +30,21 @@ final class DaemonInstaller {
         return .notRegistered
     }
 
+    private var bundledDaemonURL: URL? {
+        let url = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Library/LaunchServices/\(Self.daemonLabel)")
+        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
+    }
+
+    /// 已安装的守护进程与当前应用包内的版本不一致（应用升级后必须重装才能生效）。
+    var needsUpdate: Bool {
+        guard status == .enabled, let bundled = bundledDaemonURL else { return false }
+        guard let bundledData = try? Data(contentsOf: bundled),
+              let installedData = try? Data(contentsOf: URL(fileURLWithPath: Self.installedDaemonPath))
+        else { return true }
+        return bundledData != installedData
+    }
+
     /// 以管理员权限安装守护进程（osascript 标准授权框）。
     /// 同时清理早期版本的 SMJobBless/XPC helper 残留。
     func install() throws {

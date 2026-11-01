@@ -157,7 +157,6 @@ var lastFileMtime = Date.distantPast
 var lastHadControl = false
 var lastActiveFans: Set<Int> = []
 var lastLoadedControl: ControlFile?
-var appliedModes: [String: Int] = [:]
 // 平滑加减速：每 tick（1 秒）目标转速最多变化 500 RPM，起步从实际转速出发
 var appliedTargets: [Int: Double] = [:]
 let maxRPMStepPerTick: Double = 500
@@ -194,7 +193,6 @@ func tick() {
             NSLog("DAEMON: control expired, returned fans \(lastActiveFans.sorted()) to system")
             lastHadControl = false
             lastActiveFans.removeAll()
-            appliedModes.removeAll()
             appliedTargets.removeAll()
         }
         return
@@ -203,16 +201,16 @@ func tick() {
     lastActiveFans.formUnion(control.targets.keys.compactMap(Int.init))
     lastActiveFans.formUnion((control.modes ?? [:]).keys.compactMap(Int.init))
 
-    // 模式键只在取值变化时写（避免每秒重复写）
+    // 模式键每拍读回实际值，不一致就重写。不能只信本进程的缓存：睡眠唤醒、固件
+    // 看门狗或另一个守护进程都可能把 F{n}Md 悄悄归零；此时只写 F{n}Tg 会被固件忽略，
+    // 风扇看似“已勾选温控却不受控”，直到手动切一次模式才恢复。读回可自愈这一点。
     for (fanIndexString, value) in control.modes ?? [:] {
-        guard appliedModes[fanIndexString] != value else { continue }
         guard let fanIndex = Int(fanIndexString), fanIndex >= 0, fanIndex <= 9 else { continue }
         let key = "F\(fanIndex)Md"
-        let ok = smc.writeRaw(key, byte: UInt8(clamping: value))
+        let desired = UInt8(clamping: value)
+        guard smc.readBytes(key, size: 1)?.first != desired else { continue }
+        let ok = smc.writeRaw(key, byte: desired)
         NSLog("DAEMON: mode \(key)=\(value) -> \(ok ? "OK" : "FAILED")")
-        if ok {
-            appliedModes[fanIndexString] = value
-        }
     }
 
     // 目标转速平滑逼近（每 tick 最多 500 RPM），起步从实际转速出发

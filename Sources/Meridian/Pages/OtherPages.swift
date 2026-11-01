@@ -21,10 +21,10 @@ struct ThermalPage: View {
             ThermalDetail(model: model, showsSensorsLimit: nil)
 
             Group2(title: "控制服务", footer: "手动/温控模式由一个 root 后台服务写入风扇控制寄存器。Meridian 退出、崩溃或服务失联约 10 秒后，风扇自动交还系统控制。") {
-                Row(title: "风扇控制服务", detail: model.daemonInstalled ? "已安装并运行" : "未安装：切换到非自动模式时会请求管理员授权安装") {
+                Row(title: "风扇控制服务", detail: daemonDetail) {
                     HStack {
                         StatusDot(on: model.daemonInstalled)
-                        Button(model.daemonInstalled ? "重新安装" : "安装…") { model.installDaemon() }
+                        Button(model.daemonNeedsUpdate ? "更新…" : model.daemonInstalled ? "重新安装" : "安装…") { model.installDaemon() }
                         if model.daemonInstalled {
                             Button("移除") { model.uninstallDaemon() }
                         }
@@ -48,6 +48,12 @@ struct ThermalPage: View {
             }
             MenuWidgetToggles(preferences: preferences, widgets: [.temperature, .fan])
         }
+    }
+
+    private var daemonDetail: String {
+        if !model.daemonInstalled { return "未安装：切换到非自动模式时会请求管理员授权安装" }
+        if model.daemonNeedsUpdate { return "已安装，但与当前版本不一致；点“更新…”后才能使用新的控制逻辑" }
+        return "已安装并运行"
     }
 }
 

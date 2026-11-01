@@ -8,6 +8,7 @@ final class ThermalModel: ObservableObject {
     @Published private(set) var reading: ThermalReading?
     @Published private(set) var running = false
     @Published private(set) var daemonInstalled = false
+    @Published private(set) var daemonNeedsUpdate = false
     @Published var message: String?
 
     @Published var refreshInterval = 1.5
@@ -26,7 +27,7 @@ final class ThermalModel: ObservableObject {
         }
         engine.onUpdate = { [weak self] reading in self?.reading = reading }
         loadSettings()
-        daemonInstalled = engine.daemonInstalled
+        refreshDaemonState()
     }
 
     func start() {
@@ -34,7 +35,7 @@ final class ThermalModel: ObservableObject {
         engine.start()
         running = engine.isRunning
         if let error = engine.openError { message = "无法读取 SMC：\(error)" }
-        daemonInstalled = engine.daemonInstalled
+        refreshDaemonState()
     }
 
     /// 停用或退出时把风扇交还系统自动控制。
@@ -110,12 +111,18 @@ final class ThermalModel: ObservableObject {
 
     // MARK: 守护进程
 
-    /// 写入控制前确认 root 守护进程在位；不在则引导安装（系统管理员授权框）。
+    /// 写入控制前确认 root 守护进程在位且为当前版本；
+    /// 缺失或应用升级后版本过期都引导安装（系统管理员授权框）。
     private func ensureDaemon() -> Bool {
-        daemonInstalled = engine.daemonInstalled
-        if daemonInstalled { return true }
+        refreshDaemonState()
+        if daemonInstalled && !daemonNeedsUpdate { return true }
         installDaemon()
-        return daemonInstalled
+        return daemonInstalled && !daemonNeedsUpdate
+    }
+
+    private func refreshDaemonState() {
+        daemonInstalled = engine.daemonInstalled
+        daemonNeedsUpdate = engine.daemonNeedsUpdate
     }
 
     func installDaemon() {
@@ -125,7 +132,7 @@ final class ThermalModel: ObservableObject {
         } catch {
             message = "安装风扇控制服务失败：\(error.localizedDescription)"
         }
-        daemonInstalled = engine.daemonInstalled
+        refreshDaemonState()
     }
 
     func uninstallDaemon() {
@@ -135,7 +142,7 @@ final class ThermalModel: ObservableObject {
         } catch {
             message = "移除失败：\(error.localizedDescription)"
         }
-        daemonInstalled = engine.daemonInstalled
+        refreshDaemonState()
     }
 
     // MARK: 设置

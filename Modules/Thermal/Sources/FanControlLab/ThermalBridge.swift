@@ -162,6 +162,9 @@ public final class ThermalEngine {
 
     public var daemonInstalled: Bool { DaemonInstaller().status == .enabled }
 
+    /// 包内守护进程比已安装的新（应用升级后需要重新安装）。
+    public var daemonNeedsUpdate: Bool { DaemonInstaller().needsUpdate }
+
     /// 弹出系统管理员授权框安装/更新守护进程；需随包携带守护进程与 plist 模板。
     public func installDaemon() throws { try DaemonInstaller().install() }
 
