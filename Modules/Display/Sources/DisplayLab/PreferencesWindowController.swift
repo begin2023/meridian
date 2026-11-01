@@ -90,7 +90,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             ),
             makeRow(
                 title: "组合亮度切换点",
-                subtitle: "低于该亮度时改用 gamma 软件调光（%）",
+                subtitle: "低于该亮度时叠加 gamma 调暗（%）",
                 accessory: makeSwitchoverControl()
             ),
         ]))

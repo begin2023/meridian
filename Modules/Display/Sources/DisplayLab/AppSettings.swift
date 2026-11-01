@@ -44,8 +44,8 @@ final class AppSettings {
         set { defaults.set(max(80, min(2000, newValue)), forKey: Keys.smoothingDurationMilliseconds) }
     }
 
-    /// Combined brightness level (0-1) below which software dimming takes over
-    /// from hardware DDC control.
+    /// Brightness level (0-1) below which gamma dimming extends the hardware
+    /// range at the low end.
     var combinedDimmingPoint: Double {
         get {
             let stored = defaults.object(forKey: Keys.combinedDimmingPoint) as? Double ?? 0.25

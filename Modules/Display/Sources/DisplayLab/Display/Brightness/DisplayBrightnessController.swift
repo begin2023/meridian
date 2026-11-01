@@ -1,10 +1,11 @@
 import AppKit
+import BrightnessMapping
 import CoreGraphics
 import DisplayCore
 
 /// Per-display brightness facade. Picks a hardware backend (DDC for external
 /// panels, DisplayServices for Apple displays), layers gamma-based software
-/// dimming below the combined switchover point, and smooths transitions on a
+/// dimming below the combined dimming point, and smooths transitions on a
 /// serial queue with coalescing so slider drags never backlog the I2C bus.
 final class DisplayBrightnessController {
     enum BackendKind: String {
@@ -36,7 +37,6 @@ final class DisplayBrightnessController {
     private let settings: AppSettings
     private let queue = DispatchQueue(label: "app.meridian.display.brightness", qos: .userInitiated)
     private var currentTarget: Double
-    private var hardwareMax: Int?
     private var pendingWrite: Double?
     private var isWriting = false
     private var settleWorkItem: DispatchWorkItem?
@@ -70,8 +70,8 @@ final class DisplayBrightnessController {
         queue.sync { currentTarget }
     }
 
-    /// Reads the hardware's current brightness mapped into the combined
-    /// (slider) space, so a set of the same value round-trips without drift.
+    /// Reads the hardware brightness in slider space. Software dimming is an
+    /// additional low-end adjustment and does not change the slider mapping.
     /// Expensive (DDC pacing); call off-main.
     func readCurrentFraction() -> Double? {
         let hardwareFraction: Double?
@@ -79,9 +79,6 @@ final class DisplayBrightnessController {
         case .ddc:
             guard let ddcDevice else { return nil }
             guard let value = try? ddcDevice.readLuminance() else { return nil }
-            queue.sync {
-                hardwareMax = value.max
-            }
             hardwareFraction = value.fraction
         case .apple:
             hardwareFraction = appleBrightness?.currentFraction(for: displayID)
@@ -90,11 +87,7 @@ final class DisplayBrightnessController {
         }
 
         guard let hardwareFraction else { return nil }
-        let switchover = settings.combinedDimmingPoint
-        if switchover > 0 {
-            return min(1, switchover + hardwareFraction * (1 - switchover))
-        }
-        return hardwareFraction
+        return BrightnessMapping.sliderFraction(forHardwareFraction: hardwareFraction)
     }
 
     /// Sets brightness. `smooth` interpolates through intermediate values;
@@ -179,30 +172,32 @@ final class DisplayBrightnessController {
         queue.asyncAfter(deadline: .now() + 0.2, execute: workItem)
     }
 
-    /// Combined brightness model: above the switchover point only the
-    /// hardware backend moves; below it hardware sits at its floor and
-    /// gamma dimming takes over the remainder.
+    /// Hardware follows the full slider range. Below the switchover point,
+    /// gamma dimming extends the low end without creating a control handoff.
     private func applyFraction(_ fraction: Double, sends: Int? = nil) throws {
-        let switchover = settings.combinedDimmingPoint
+        let mapping = BrightnessMapping.make(
+            fraction: fraction,
+            switchover: settings.combinedDimmingPoint
+        )
         let dimming = SoftwareDimming.shared
 
-        if switchover <= 0 || fraction >= switchover {
-            let hardwareFraction: Double
-            if switchover > 0 {
-                hardwareFraction = (fraction - switchover) / (1 - switchover)
-            } else {
-                hardwareFraction = fraction
+        guard mapping.softwareDimmingFactor < 1 else {
+            do {
+                try applyHardware(mapping.hardwareFraction, sends: sends)
+            } catch {
+                if dimming.factor(for: displayID) != 1.0 {
+                    dimming.apply(factor: 1.0, to: displayID)
+                }
+                throw error
             }
-            try applyHardware(hardwareFraction, sends: sends)
             if dimming.factor(for: displayID) != 1.0 {
                 dimming.apply(factor: 1.0, to: displayID)
             }
             return
         }
 
-        // Below switchover: hardware at floor, gamma does the rest.
-        try? applyHardware(0, sends: sends)
-        dimming.apply(factor: fraction / switchover, to: displayID)
+        try? applyHardware(mapping.hardwareFraction, sends: sends)
+        dimming.apply(factor: mapping.softwareDimmingFactor, to: displayID)
     }
 
     private func applyHardware(_ fraction: Double, sends: Int? = nil) throws {
