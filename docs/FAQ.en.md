@@ -24,9 +24,9 @@ Check whether the feature is enabled and whether Screen Recording or Accessibili
 
 Availability depends on the display, macOS, cable, adapter, and connection method. Software dimming and backlight control have different effects. First confirm that the display works correctly in macOS Display settings, then try the available Meridian controls.
 
-## Does 5K HiDPI increase CPU, GPU, or memory use?
+## Do HiDPI sizes increase CPU, GPU, or memory use?
 
-It may. Rendering happens at a higher resolution and is then scaled to the physical display. Refresh rate, the number of external displays, and screen content all affect overhead. Restore native mode when the feature is not needed.
+Somewhat. HiDPI sizes render at twice the resolution and macOS scales the result to the panel (a 2560×1440 panel renders at 5120×2880). This happens directly on the physical display without virtual-display mirroring, so it does not cost HDR or cap the refresh rate at 60Hz.
 
 ## Why are some temperature readings missing or marked as candidates?
 

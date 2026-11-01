@@ -46,10 +46,14 @@ public enum ModeService {
             }
             let refresh = Double(description.refreshRate)
             let density = CGFloat(description.density)
+            // CGS 描述里的宽高是点数；乘以 density 才是帧缓冲像素，和公开模式表保持同一单位。
+            let scale = density >= 1 ? density : 1
             modes.append(
                 DisplayModeInfo(
-                    pixelWidth: width,
-                    pixelHeight: height,
+                    pixelWidth: Int((CGFloat(width) * scale).rounded()),
+                    pixelHeight: Int((CGFloat(height) * scale).rounded()),
+                    pointWidth: width,
+                    pointHeight: height,
                     refreshRate: refresh,
                     isHiDPI: density >= 1.5,
                     cgsIndex: Int(index),
@@ -74,6 +78,8 @@ public enum ModeService {
             return DisplayModeInfo(
                 pixelWidth: mode.pixelWidth,
                 pixelHeight: mode.pixelHeight,
+                pointWidth: mode.width,
+                pointHeight: mode.height,
                 refreshRate: mode.refreshRate,
                 isHiDPI: DisplayModeInfo.ratio(mode.pixelWidth, mode.width) >= 1.5,
                 cgsIndex: nil,

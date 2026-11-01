@@ -55,7 +55,7 @@ enum Feature: String, CaseIterable, Identifiable, Codable {
     var summary: String {
         switch self {
         case .capture: return "区域截图、标注、贴图、文字识别、GIF 录制与历史"
-        case .display: return "外接屏亮度、分辨率与 5K HiDPI、HDR 和虚拟屏"
+        case .display: return "外接屏亮度、HiDPI 分辨率与刷新率、HDR 和虚拟屏"
         case .thermal: return "温度传感器、风扇转速，自动 / 温控曲线 / 固定转速"
         case .pointer: return "鼠标滚轮平滑滚动与方向反转，可按应用设置例外"
         case .telemetry: return "CPU、内存、网络、磁盘实时数据与进程排行"

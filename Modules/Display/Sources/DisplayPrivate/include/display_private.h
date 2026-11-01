@@ -90,6 +90,12 @@ extern CGError CGSConfigureDisplayEnabled(CGDisplayConfigRef config,
 - (instancetype)initWithWidth:(NSUInteger)width
                        height:(NSUInteger)height
                   refreshRate:(CGFloat)refreshRate;
+// macOS 14+. Measured on macOS 27.2: transferFunction 1 makes the virtual
+// screen HDR (PQ) capable and enabled; 0 is SDR, 2 and 3 were not HDR.
+- (instancetype)initWithWidth:(NSUInteger)width
+                       height:(NSUInteger)height
+                  refreshRate:(CGFloat)refreshRate
+             transferFunction:(uint32_t)transferFunction;
 @property (readonly) NSUInteger width;
 @property (readonly) NSUInteger height;
 @property (readonly) CGFloat refreshRate;
@@ -106,6 +112,11 @@ extern CGError CGSConfigureDisplayEnabled(CGDisplayConfigRef config,
 @property UInt32 productID;
 @property UInt32 vendorID;
 @property UInt32 serialNumber;
+// CIE xy chromaticities of the advertised color space.
+@property CGPoint redPrimary;
+@property CGPoint greenPrimary;
+@property CGPoint bluePrimary;
+@property CGPoint whitePoint;
 @end
 
 @interface CGVirtualDisplaySettings : NSObject

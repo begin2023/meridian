@@ -72,6 +72,8 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         refreshFromStore()
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+        // 默认焦点给列表，免得日期框一打开就选中年份、方向键改的是日期。
+        window?.makeFirstResponder(tableView)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -186,11 +188,14 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
             listContainer.addSubview(view)
         }
 
-        previewImageView.imageScaling = .scaleProportionallyUpOrDown
-        previewImageView.wantsLayer = true
-        previewImageView.layer?.backgroundColor = NSColor.black.cgColor
-        previewImageView.layer?.cornerRadius = 9
-        previewImageView.layer?.masksToBounds = true
+        // 预览尺寸只由窗口决定，不跟图片走：否则长图会把面板撑高，切换图片时整个布局跳动。
+        // 大图按比例缩小放进去，小图保持原大不放大发糊。
+        previewImageView.imageScaling = .scaleProportionallyDown
+        previewImageView.imageAlignment = .alignCenter
+        for orientation in [NSLayoutConstraint.Orientation.horizontal, .vertical] {
+            previewImageView.setContentHuggingPriority(.init(1), for: orientation)
+            previewImageView.setContentCompressionResistancePriority(.init(1), for: orientation)
+        }
         previewImageView.identifier = NSUserInterfaceItemIdentifier("HistoryPreview")
 
         previewPlaceholder.font = AppTheme.font(ofSize: 13, weight: .medium)
@@ -213,6 +218,7 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         metadataLabel.font = AppTheme.font(ofSize: 12, weight: .medium)
         metadataLabel.textColor = .secondaryLabelColor
         metadataLabel.lineBreakMode = .byTruncatingTail
+        metadataLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         metadataLabel.identifier = NSUserInterfaceItemIdentifier("HistoryMetadata")
 
         configureActionButton(editButton, action: #selector(editSelected))
@@ -231,21 +237,6 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         actions.alignment = .centerY
         actions.spacing = 7
 
-        let previewPane = NSStackView(views: [metadataLabel, previewContainer, actions])
-        previewPane.orientation = .vertical
-        previewPane.alignment = .leading
-        previewPane.spacing = 9
-        actions.widthAnchor.constraint(equalTo: previewPane.widthAnchor).isActive = true
-        previewContainer.widthAnchor.constraint(equalTo: previewPane.widthAnchor).isActive = true
-        metadataLabel.widthAnchor.constraint(equalTo: previewPane.widthAnchor).isActive = true
-
-        let columns = NSStackView(views: [listContainer, previewPane])
-        columns.orientation = .horizontal
-        columns.alignment = .top
-        columns.spacing = 14
-        listContainer.widthAnchor.constraint(equalToConstant: 330).isActive = true
-        columns.heightAnchor.constraint(greaterThanOrEqualToConstant: 430).isActive = true
-
         let memoryNote = NSTextField(
             wrappingLabelWithString: "历史存于本地磁盘；缩略图和当前预览会增加少量内存占用。"
         )
@@ -254,24 +245,41 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         memoryNote.maximumNumberOfLines = 2
         memoryNote.identifier = NSUserInterfaceItemIdentifier("HistoryMemoryNote")
 
-        let root = NSStackView(views: [titleRow, filterRow, columns, memoryNote])
-        root.orientation = .vertical
-        root.alignment = .leading
-        root.spacing = 12
-        root.setCustomSpacing(16, after: titleRow)
-        root.setCustomSpacing(10, after: columns)
-        root.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(root)
+        // 固定骨架：列表占满左侧高度，预览区占满右侧剩余空间，按钮贴在预览下方。
+        for view in [titleRow, filterRow, listContainer, metadataLabel, previewContainer, actions, memoryNote] as [NSView] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview(view)
+        }
 
+        let margin: CGFloat = 22
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 22),
-            root.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -22),
-            root.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
-            root.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
-            titleRow.widthAnchor.constraint(equalTo: root.widthAnchor),
-            filterRow.widthAnchor.constraint(equalTo: root.widthAnchor),
-            columns.widthAnchor.constraint(equalTo: root.widthAnchor),
-            memoryNote.widthAnchor.constraint(equalTo: root.widthAnchor),
+            titleRow.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: margin),
+            titleRow.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -margin),
+            titleRow.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            filterRow.leadingAnchor.constraint(equalTo: titleRow.leadingAnchor),
+            filterRow.trailingAnchor.constraint(equalTo: titleRow.trailingAnchor),
+            filterRow.topAnchor.constraint(equalTo: titleRow.bottomAnchor, constant: 16),
+
+            listContainer.leadingAnchor.constraint(equalTo: titleRow.leadingAnchor),
+            listContainer.topAnchor.constraint(equalTo: filterRow.bottomAnchor, constant: 14),
+            listContainer.bottomAnchor.constraint(equalTo: memoryNote.topAnchor, constant: -10),
+            listContainer.widthAnchor.constraint(equalToConstant: 330),
+
+            metadataLabel.leadingAnchor.constraint(equalTo: listContainer.trailingAnchor, constant: 16),
+            metadataLabel.trailingAnchor.constraint(equalTo: titleRow.trailingAnchor),
+            metadataLabel.topAnchor.constraint(equalTo: listContainer.topAnchor),
+            previewContainer.leadingAnchor.constraint(equalTo: metadataLabel.leadingAnchor),
+            previewContainer.trailingAnchor.constraint(equalTo: titleRow.trailingAnchor),
+            previewContainer.topAnchor.constraint(equalTo: metadataLabel.bottomAnchor, constant: 9),
+            actions.leadingAnchor.constraint(equalTo: metadataLabel.leadingAnchor),
+            actions.trailingAnchor.constraint(equalTo: titleRow.trailingAnchor),
+            actions.topAnchor.constraint(equalTo: previewContainer.bottomAnchor, constant: 10),
+            actions.bottomAnchor.constraint(equalTo: listContainer.bottomAnchor),
+
+            memoryNote.leadingAnchor.constraint(equalTo: titleRow.leadingAnchor),
+            memoryNote.trailingAnchor.constraint(equalTo: titleRow.trailingAnchor),
+            memoryNote.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
+
             scrollView.leadingAnchor.constraint(equalTo: listContainer.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: listContainer.trailingAnchor),
             scrollView.topAnchor.constraint(equalTo: listContainer.topAnchor),

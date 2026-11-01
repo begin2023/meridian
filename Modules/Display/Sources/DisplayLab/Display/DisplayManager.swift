@@ -41,6 +41,9 @@ final class DisplayManager {
 
     func refresh() {
         displays = (try? DisplayEnumerator.enumerate()) ?? []
+        for controller in brightnessControllers.values {
+            controller.updateHDRState()
+        }
         onDisplaysChanged?()
     }
 
@@ -93,6 +96,7 @@ final class DisplayManager {
         } else {
             controller = DisplayBrightnessController(displayID: display, ddcDevice: nil, appleBrightness: nil)
         }
+        controller.updateHDRState()
         brightnessControllers[display] = controller
         return controller
     }

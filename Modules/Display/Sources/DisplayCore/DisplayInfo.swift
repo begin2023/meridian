@@ -6,8 +6,12 @@ import DisplayPrivate
 /// table; modes discovered through the public API carry nil and switch through
 /// CGConfigureDisplayWithDisplayMode instead.
 public struct DisplayModeInfo: Equatable {
+    /// 帧缓冲像素（HiDPI 模式是点数的 2 倍）。
     public let pixelWidth: Int
     public let pixelHeight: Int
+    /// 桌面点数，即“看起来像”的尺寸。
+    public let pointWidth: Int
+    public let pointHeight: Int
     public let refreshRate: Double
     public let isHiDPI: Bool
     public let cgsIndex: Int?

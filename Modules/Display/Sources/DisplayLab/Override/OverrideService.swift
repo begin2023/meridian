@@ -169,7 +169,8 @@ final class OverrideService {
         }
     }
 
-    /// Installs the HiDPI override for a display (2x and 1.5x native targets).
+    /// Installs the HiDPI override for a display: a same-aspect HiDPI ladder
+    /// (see OverrideSupport.hiDPILadder).
     func installOverride(for display: DisplayInfo) async throws -> String {
         let info = CoreDisplayBridge.createInfoDictionary(for: display.identifier)
         let nativeWidth = info?["kCGDisplayPixelWidth"] as? Int ?? display.pixelWidth / max(1, Int(display.scale))
@@ -189,7 +190,9 @@ final class OverrideService {
             targetDefaultPPMM: ppmm
         )
         _ = try send(command)
-        return "已为 \(display.name) 安装 HiDPI 覆盖（\(nativeWidth)×\(nativeHeight) 面板，2x/1.5x 渲染目标）。重新插拔显示线或注销重登后生效。"
+        let tiers = OverrideSupport.hiDPILadder(nativeWidth: nativeWidth, nativeHeight: nativeHeight)
+            .map { "\($0.width)×\($0.height)" }.joined(separator: "、")
+        return "已为 \(display.name) 写入 HiDPI 档位：\(tiers)。重新插拔显示线或注销重登后生效。"
     }
 
     func removeOverride(for display: DisplayInfo) async throws -> String {

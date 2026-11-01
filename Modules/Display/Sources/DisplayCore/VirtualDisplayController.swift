@@ -14,13 +14,21 @@ public final class VirtualDisplayController {
         public let pixelHeight: Int
         public let refreshRate: Double
         public let hiDPI: Bool
+        /// HDR（PQ）虚拟屏：Display P3 原色 + PQ 传输函数，镜像/串流到 HDR 屏时保留 HDR 内容。
+        public let hdr: Bool
 
-        public init(name: String, pixelWidth: Int, pixelHeight: Int, refreshRate: Double, hiDPI: Bool = true) {
+        public init(name: String, pixelWidth: Int, pixelHeight: Int, refreshRate: Double, hiDPI: Bool = true, hdr: Bool = false) {
             self.name = name
             self.pixelWidth = pixelWidth
             self.pixelHeight = pixelHeight
             self.refreshRate = refreshRate
             self.hiDPI = hiDPI
+            self.hdr = hdr
+        }
+
+        public func withHDR(_ hdr: Bool) -> Spec {
+            Spec(name: name, pixelWidth: pixelWidth, pixelHeight: pixelHeight,
+                 refreshRate: refreshRate, hiDPI: hiDPI, hdr: hdr)
         }
 
         public static let presets: [Spec] = [
@@ -121,6 +129,13 @@ public final class VirtualDisplayController {
         descriptor.productID = 0
         descriptor.serialNum = serial
         descriptor.serialNumber = serial
+        if spec.hdr {
+            // Display P3 / D65：HDR 内容需要广色域描述，否则系统按 sRGB 截断。
+            descriptor.redPrimary = CGPoint(x: 0.680, y: 0.320)
+            descriptor.greenPrimary = CGPoint(x: 0.265, y: 0.690)
+            descriptor.bluePrimary = CGPoint(x: 0.150, y: 0.060)
+            descriptor.whitePoint = CGPoint(x: 0.3127, y: 0.3290)
+        }
 
         guard let display = CGVirtualDisplay(descriptor: descriptor) else {
             throw VirtualDisplayError.creationFailed("CGVirtualDisplay 返回空。")
@@ -130,21 +145,23 @@ public final class VirtualDisplayController {
         // Mode carries the full pixel size; with hiDPI enabled macOS
         // additionally advertises Retina modes at half the pixel size in
         // points (measured recipe, macOS 26).
-        var modes = [
-            CGVirtualDisplayMode(
-                width: UInt(spec.pixelWidth),
-                height: UInt(spec.pixelHeight),
-                refreshRate: spec.refreshRate
-            ),
-        ]
+        let supportsTransferFunction = CGVirtualDisplayMode.instancesRespond(
+            to: #selector(CGVirtualDisplayMode.init(width:height:refreshRate:transferFunction:)))
+        if spec.hdr && !supportsTransferFunction {
+            throw VirtualDisplayError.creationFailed("当前系统不支持 HDR 虚拟屏。")
+        }
+        func mode(_ width: Int, _ height: Int) -> CGVirtualDisplayMode? {
+            if spec.hdr {
+                return CGVirtualDisplayMode(width: UInt(width), height: UInt(height),
+                                            refreshRate: spec.refreshRate, transferFunction: 1)
+            }
+            return CGVirtualDisplayMode(width: UInt(width), height: UInt(height), refreshRate: spec.refreshRate)
+        }
+        var modes = [mode(spec.pixelWidth, spec.pixelHeight)]
         // 实测（macOS 27.2）：系统只为声明过的模式生成 2× Retina 版本，不会从全像素模式
         // 自动推出“点数 = 像素/2”的那一档；HiDPI 规格必须显式声明半尺寸模式。
         if spec.hiDPI {
-            modes.append(CGVirtualDisplayMode(
-                width: UInt(spec.pixelWidth / 2),
-                height: UInt(spec.pixelHeight / 2),
-                refreshRate: spec.refreshRate
-            ))
+            modes.append(mode(spec.pixelWidth / 2, spec.pixelHeight / 2))
         }
         settings.modes = modes.compactMap { $0 }
         settings.hiDPI = spec.hiDPI ? 1 : 0
@@ -291,7 +308,7 @@ public final class VirtualDisplayController {
         }
         let cgs = ModeService.cgsModes(for: display)
         if let current = cgs.first(where: { $0.isCurrent }) {
-            return current.pixelWidth == Int(size.width) && current.pixelHeight == Int(size.height)
+            return current.pointWidth == Int(size.width) && current.pointHeight == Int(size.height)
                 && current.isHiDPI == spec.hiDPI
         }
         // 最后只剩点数可用于判断（至少保证桌面尺寸正确）。
@@ -329,14 +346,13 @@ public final class VirtualDisplayController {
             if waitForMatch(display, spec, timeout: 2) { return true }
         }
 
-        // 2) CGS 私有模式表：对虚拟屏，description.width 记录的正是点数，
-        //    density ≥ 1.5 表示 HiDPI。CLI 进程的公开表为空，只能走这里。
+        // 2) CGS 私有模式表：density ≥ 1.5 表示 HiDPI。CLI 进程的公开表为空，只能走这里。
         let cgs = ModeService.cgsModes(for: display)
         let exact = cgs.filter {
-            $0.pixelWidth == Int(size.width) && $0.pixelHeight == Int(size.height)
+            $0.pointWidth == Int(size.width) && $0.pointHeight == Int(size.height)
                 && $0.isHiDPI == spec.hiDPI
         }
-        let fallback = cgs.filter { $0.pixelWidth == Int(size.width) && $0.pixelHeight == Int(size.height) }
+        let fallback = cgs.filter { $0.pointWidth == Int(size.width) && $0.pointHeight == Int(size.height) }
         if let wanted = (exact.isEmpty ? fallback : exact).max(by: { $0.refreshRate < $1.refreshRate }) {
             try? ModeService.apply(mode: wanted, to: display)
             if waitForMatch(display, spec, timeout: 2) { return true }

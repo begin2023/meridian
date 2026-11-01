@@ -52,15 +52,40 @@ public enum HDRService {
             return nil
         }
         // The setter returns before WindowServer applies the change; the
-        // readback below is authoritative.
-        var applied: Bool?
-        for _ in 0..<10 {
-            usleep(50_000)
-            applied = isEnabled(display)
-            if applied == enabled {
-                break
-            }
+        // readback below is authoritative. 外接屏切换 HDR 要重新协商链路，实测约 1–2 秒。
+        if waitForState(enabled, on: display, seconds: 2.5) {
+            return enabled
         }
-        return applied
+        // 实测（macOS 27.2，AOC Q27G2G3R4B）：用 CGS 私有接口切过模式后，WindowServer 有时只记下
+        // “output mode change”请求却不执行，直到下一次 modeset 才生效（日志里链路一直停在
+        // YCbCr444_8bit）。原样重设一次当前模式就能把挂起的请求冲下去，分辨率和刷新率不变。
+        reapplyCurrentMode(display)
+        if waitForState(enabled, on: display, seconds: 3) {
+            return enabled
+        }
+        _ = functions?.set(display, enabled)
+        _ = waitForState(enabled, on: display, seconds: 3)
+        return isEnabled(display)
+    }
+
+    private static func waitForState(_ enabled: Bool, on display: CGDirectDisplayID, seconds: Double) -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            usleep(100_000)
+            if isEnabled(display) == enabled { return true }
+        }
+        return false
+    }
+
+    private static func reapplyCurrentMode(_ display: CGDirectDisplayID) {
+        guard let mode = CGDisplayCopyDisplayMode(display) else { return }
+        var config: CGDisplayConfigRef?
+        guard CGBeginDisplayConfiguration(&config) == .success, let config else { return }
+        guard CGConfigureDisplayWithDisplayMode(config, display, mode, nil) == .success else {
+            CGCancelDisplayConfiguration(config)
+            return
+        }
+        CGCompleteDisplayConfiguration(config, .forSession)
+        NSLog("DisplayLab HDR: request pending, re-applied current mode %u to flush it", mode.ioDisplayModeID)
     }
 }

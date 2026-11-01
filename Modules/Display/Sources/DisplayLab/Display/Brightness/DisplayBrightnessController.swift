@@ -7,6 +7,12 @@ import DisplayCore
 /// panels, DisplayServices for Apple displays), layers gamma-based software
 /// dimming below the combined dimming point, and smooths transitions on a
 /// serial queue with coalescing so slider drags never backlog the I2C bus.
+///
+/// While an external display is in HDR mode, most panels ignore DDC
+/// brightness and gamma dimming clips HDR content. Like BetterDisplay, the
+/// controller then drives macOS's SDR brightness (the "HDR brightness"
+/// slider, exposed through DisplayServices on macOS 15+) and uses the gamma
+/// table only for an optional boost above 100% inside the EDR headroom.
 final class DisplayBrightnessController {
     enum BackendKind: String {
         case ddc
@@ -34,12 +40,30 @@ final class DisplayBrightnessController {
 
     private let ddcDevice: DDCDevice?
     private let appleBrightness: AppleBrightness?
+    /// DisplayServices handle for the SDR brightness of external HDR displays.
+    private let sdrBrightness: AppleBrightness?
     private let settings: AppSettings
     private let queue = DispatchQueue(label: "app.meridian.display.brightness", qos: .userInitiated)
     private var currentTarget: Double
     private var pendingWrite: Double?
     private var isWriting = false
     private var settleWorkItem: DispatchWorkItem?
+    /// HDR state and boost are read from the main thread on every UI
+    /// rebuild; a lock keeps those reads from waiting behind DDC writes on
+    /// `queue`.
+    private let stateLock = NSLock()
+    private var lockedHDRActive = false
+    private var lockedBoost = 1.0
+    private var hdrActive: Bool {
+        get { stateLock.withLock { lockedHDRActive } }
+        set { stateLock.withLock { lockedHDRActive = newValue } }
+    }
+    private var boost: Double {
+        get { stateLock.withLock { lockedBoost } }
+        set { stateLock.withLock { lockedBoost = newValue } }
+    }
+    /// Slider target from SDR mode, restored when HDR is turned off.
+    private var sdrModeTarget = 1.0
 
     init(
         displayID: CGDirectDisplayID,
@@ -50,6 +74,7 @@ final class DisplayBrightnessController {
         self.displayID = displayID
         self.ddcDevice = ddcDevice
         self.appleBrightness = appleBrightness
+        self.sdrBrightness = appleBrightness == nil ? AppleBrightness.make() : nil
         self.settings = settings
 
         if ddcDevice != nil {
@@ -70,10 +95,66 @@ final class DisplayBrightnessController {
         queue.sync { currentTarget }
     }
 
+    /// True while brightness goes to macOS's SDR brightness (HDR mode).
+    var controlsHDRSDRBrightness: Bool {
+        hdrActive
+    }
+
+    /// Current boost factor (1 = off).
+    var boostFactor: Double {
+        boost
+    }
+
+    /// Re-evaluates whether the display is in HDR mode with a usable SDR
+    /// brightness control. Cheap; called on every display reconfiguration.
+    func updateHDRState() {
+        let active = HDRService.isEnabled(displayID) == true
+            && (sdrBrightness?.canChange(displayID) ?? false)
+        queue.async { [weak self] in
+            guard let self, active != self.hdrActive else { return }
+            self.hdrActive = active
+            self.boost = 1.0
+            let dimming = SoftwareDimming.shared
+            if active {
+                // Gamma dimming would clip HDR highlights; the SDR brightness
+                // control takes over the whole range.
+                self.sdrModeTarget = self.currentTarget
+                if dimming.factor(for: self.displayID) != 1.0 {
+                    dimming.apply(factor: 1.0, to: self.displayID)
+                }
+            } else {
+                // Back to SDR: the panel kept its DDC level, so only the
+                // software part of the previous SDR-mode target is restored.
+                self.currentTarget = self.sdrModeTarget
+                let mapping = BrightnessMapping.make(fraction: self.currentTarget,
+                                                     switchover: self.settings.combinedDimmingPoint)
+                if dimming.factor(for: self.displayID) != mapping.softwareDimmingFactor {
+                    dimming.apply(factor: mapping.softwareDimmingFactor, to: self.displayID)
+                }
+            }
+        }
+    }
+
+    /// Brightness boost above 100% using EDR headroom. Only effective in HDR
+    /// mode; callers clamp to the display's headroom.
+    func setBoost(_ factor: Double) {
+        guard hdrActive else { return }
+        // Published immediately so the next UI rebuild reads the new value.
+        let clamped = min(SoftwareDimming.maxBoost, max(1, factor))
+        boost = clamped
+        queue.async { [weak self] in
+            guard let self, self.hdrActive else { return }
+            SoftwareDimming.shared.apply(factor: clamped, to: self.displayID)
+        }
+    }
+
     /// Reads the hardware brightness in slider space. Software dimming is an
     /// additional low-end adjustment and does not change the slider mapping.
     /// Expensive (DDC pacing); call off-main.
     func readCurrentFraction() -> Double? {
+        if hdrActive {
+            return sdrBrightness?.currentFraction(for: displayID)
+        }
         let hardwareFraction: Double?
         switch backendKind {
         case .ddc:
@@ -175,6 +256,12 @@ final class DisplayBrightnessController {
     /// Hardware follows the full slider range. Below the switchover point,
     /// gamma dimming extends the low end without creating a control handoff.
     private func applyFraction(_ fraction: Double, sends: Int? = nil) throws {
+        if hdrActive, let sdrBrightness {
+            guard sdrBrightness.apply(fraction: fraction, to: displayID) else {
+                throw BrightnessError.hardwareWriteFailed
+            }
+            return
+        }
         let mapping = BrightnessMapping.make(
             fraction: fraction,
             switchover: settings.combinedDimmingPoint

@@ -28,7 +28,7 @@ The interface is built with SwiftUI and AppKit and supports light, dark, and sys
 | Module | What it does |
 | --- | --- |
 | Capture & OCR | Area, window, full-screen, and timed captures; annotations; on-device text recognition; pinned screenshots; history; area GIF recording up to 30 seconds |
-| Displays | External display brightness, software dimming, resolution and refresh rate, HDR, virtual displays, and HiDPI upscaling; availability depends on the display and macOS |
+| Displays | External display brightness, software dimming, HiDPI resolution sizes and refresh rate, HDR (SDR brightness and brightness boost), virtual displays; availability depends on the display and macOS |
 | Fans & thermals | Fan speed and readable temperatures; system auto, fixed RPM, temperature curve, and full-speed presets; control requires the administrator helper and compatible hardware |
 | Scroll enhancement | Smooth scrolling, direction reversal, per-app profiles, and temporary pause |
 | System monitoring | CPU, memory, network, disk, and process rankings; menu bar widgets can be enabled independently |
@@ -68,7 +68,7 @@ These are the default shortcuts for a fresh installation. Upgrading from an olde
 - Left-click the main menu bar icon to open the panel. Right-click it for capture, OCR, GIF, history, and quit actions.
 - The main window sidebar contains Overview, five feature pages, and General settings.
 - Closing the main window does not quit the app. To exit completely, choose **Quit Meridian** from the menu.
-- On a normal quit, the app asks to return fans to system control and cleans up virtual-display upscaling and software dimming. Abnormal-exit and restart behavior still needs verification across devices.
+- On a normal quit, the app asks to return fans to system control and cleans up virtual displays, software dimming, and brightness boost. Abnormal-exit and restart behavior still needs verification across devices.
 - Multiple tools that process scroll-wheel events or control the same hardware may conflict. Pause them one at a time when troubleshooting.
 
 See the [User Guide](docs/USER_GUIDE.en.md) for detailed instructions and the [FAQ](docs/FAQ.en.md) for troubleshooting.

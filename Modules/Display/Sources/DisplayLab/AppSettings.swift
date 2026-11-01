@@ -15,6 +15,7 @@ final class AppSettings {
         static let launchAtLogin = "launchAtLogin"
         static let takeOverBrightnessKeys = "takeOverBrightnessKeys"
         static let showVirtualScreens = "showVirtualScreens"
+        static let hdrDisablesNightShift = "hdrDisablesNightShift"
     }
 
     private let defaults: UserDefaults
@@ -99,6 +100,13 @@ final class AppSettings {
     var showVirtualScreens: Bool {
         get { defaults.object(forKey: Keys.showVirtualScreens) as? Bool ?? false }
         set { defaults.set(newValue, forKey: Keys.showVirtualScreens) }
+    }
+
+    /// Turn Night Shift and True Tone off while an external display is in
+    /// HDR mode and back on afterwards. Off by default.
+    var hdrDisablesNightShift: Bool {
+        get { defaults.object(forKey: Keys.hdrDisablesNightShift) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Keys.hdrDisablesNightShift) }
     }
 
     var launchAtLogin: Bool {

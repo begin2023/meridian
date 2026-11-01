@@ -47,7 +47,9 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
         pointer = PointerModel(suite: Suites.pointer)
         telemetry = TelemetryModel()
         display = DisplayModel(suite: Suites.display)
-        brightnessHUD = BrightnessHUDController()
+        brightnessHUD = BrightnessHUDController { [weak self] id, value in
+            self?.display.setBrightness(value, for: id)
+        }
         display.onBrightnessHUD = { [weak self] values in
             self?.brightnessHUD.show(values)
         }
@@ -117,6 +119,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     }
 
     /// meridian://panel[/cpu|memory|network|disk|thermal] · meridian://open/<overview|capture|display|thermal|pointer|telemetry|general>
+    /// · meridian://resolution/<native|2560x1440> · meridian://refresh/<hz> · meridian://hdr/<on|off|toggle> · meridian://boost/<100–400>
     /// · meridian://capture|ocr|pin|gif — 供启动器、快捷指令和脚本调用。
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "meridian" {
@@ -147,14 +150,29 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
                 let presets: [String: ThermalModel.Preset] = ["auto": .automatic, "curve": .curve, "fixed": .fixed, "full": .full]
                 if let preset = presets[arg] { thermal.apply(preset) }
             case "resolution":
-                // 作用于第一块可上采样的外接屏
+                // 作用于第一块外接屏：native/5k 回到原生尺寸 HiDPI，或指定“2560x1440”这样的桌面尺寸。
                 guard let target = display.displays.first(where: { !$0.isBuiltIn && !$0.isOwnVirtual }) else { break }
-                switch arg {
-                case "5k": display.setUpsample(.hiDPI, for: target.id)
-                case "space": display.setUpsample(.moreSpace, for: target.id)
-                case "native": display.restoreNative(target.id)
-                default: break
+                let size = arg.lowercased().split(separator: "x").compactMap { Int($0) }
+                if size.count == 2,
+                   let option = target.resolutions.first(where: { $0.width == size[0] && $0.height == size[1] })
+                    ?? target.allResolutions.first(where: { $0.width == size[0] && $0.height == size[1] }) {
+                    display.applyResolution(option, to: target.id)
+                } else if arg == "native" || arg == "5k" {
+                    display.restoreNative(target.id)
                 }
+            case "refresh":
+                guard let target = display.displays.first(where: { !$0.isBuiltIn && !$0.isOwnVirtual }),
+                      let rate = Double(arg) else { break }
+                display.applyRefreshRate(rate, to: target.id)
+            case "boost":
+                // HDR 模式下的亮度提升，百分比，100 为关闭。
+                guard let target = display.displays.first(where: \.canBoost),
+                      let value = Double(arg) else { break }
+                display.setBoost(value / 100, for: target.id)
+            case "hdr":
+                guard let target = display.displays.first(where: { $0.supportsHDR && !$0.isOwnVirtual }) else { break }
+                let on = arg == "toggle" ? !(target.hdrEnabled ?? false) : arg == "on"
+                display.setHDR(on, for: target.id)
             case "brightness":
                 if let value = Double(arg) { display.setAllBrightness(min(max(value, 0), 100) / 100) }
             case "close":

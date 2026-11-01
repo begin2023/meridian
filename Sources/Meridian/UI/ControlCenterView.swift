@@ -274,6 +274,8 @@ private struct DisplayRow: View {
     @ObservedObject var model: DisplayModel
     let display: ScreenDisplay
     @Local private var brightness: Double = 1
+    @Local private var boost: Double = 1
+    @Local private var showModes = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -282,9 +284,6 @@ private struct DisplayRow: View {
                 Text(display.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
                 Spacer()
                 if model.busy.contains(display.id) { ProgressView().controlSize(.mini) }
-                Text(display.upsample == .off ? (display.currentMode?.shortLabel ?? "")
-                     : display.upsample == .hiDPI ? "\(display.nativeWidth) × \(display.nativeHeight) · 5K 渲染" : "\(display.nativeWidth * 2) × \(display.nativeHeight * 2)")
-                    .font(.system(size: 10.5)).foregroundStyle(.secondary)
             }
             if display.brightnessBackend != .unavailable {
                 HStack(spacing: 8) {
@@ -299,61 +298,126 @@ private struct DisplayRow: View {
                         .monospacedDigit().frame(width: 24, alignment: .trailing)
                 }
             }
-            HStack(spacing: 6) {
-                Menu {
-                    if canUpsample {
-                        Section("5K 渲染") {
-                            check("\(display.nativeWidth) × \(display.nativeHeight) HiDPI · 5K 渲染", display.upsample == .hiDPI) {
-                                model.setUpsample(.hiDPI, for: display.id)
-                            }
-                            check("\(display.nativeWidth * 2) × \(display.nativeHeight * 2) · 更多空间", display.upsample == .moreSpace) {
-                                model.setUpsample(.moreSpace, for: display.id)
-                            }
+            if display.canBoost {
+                HStack(spacing: 8) {
+                    Text("提升").font(.system(size: 10.5)).foregroundStyle(.secondary)
+                    Slider(value: $boost, in: 1...display.edrHeadroom) { _ in }
+                        .controlSize(.small)
+                        .onChange(of: boost) { _, value in
+                            if abs(value - display.boost) > 0.004 { model.setBoost(value, for: display.id) }
                         }
-                    }
-                    Section("显示器模式") {
-                        ForEach(display.quickModes, id: \.label) { mode in
-                            check(mode.shortLabel, display.upsample == .off && mode.isCurrent) {
-                                model.applyMode(mode, to: display)
-                            }
-                        }
-                    }
-                    Divider()
-                    Button("恢复原生分辨率") { model.restoreNative(display.id) }
-                } label: {
-                    Label(resolutionTitle, systemImage: "rectangle.expand.vertical")
+                    Text("\(Int((boost * 100).rounded()))").font(.system(size: 11, design: .rounded))
+                        .monospacedDigit().frame(width: 24, alignment: .trailing)
                 }
-                .menuStyle(.button).buttonStyle(.bordered).controlSize(.small).fixedSize()
+            }
+            HStack(spacing: 6) {
+                // 用面板内展开的列表而不是系统菜单：菜单打开时会独占键盘，截图等全局快捷键全部失效。
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) { showModes.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "rectangle.expand.vertical")
+                        Text(display.modeSummary.isEmpty ? "分辨率" : display.modeSummary).monospacedDigit()
+                        Image(systemName: showModes ? "chevron.up" : "chevron.down").font(.system(size: 9, weight: .semibold))
+                    }
+                }
+                .buttonStyle(.bordered).controlSize(.small).fixedSize()
+
+                Toggle("HiDPI", isOn: Binding(get: { display.isHiDPI }, commit: { model.setHiDPI($0, for: display.id) }))
+                    .toggleStyle(.button).controlSize(.small)
+                    .disabled(display.hiDPICounterpart == nil || model.busy.contains(display.id))
+                    .help(hiDPIHelp)
 
                 if display.supportsHDR {
                     Toggle("HDR", isOn: Binding(get: { display.hdrEnabled ?? false },
                                                 commit: { model.setHDR($0, for: display.id) }))
                         .toggleStyle(.button).controlSize(.small)
+                        .disabled(model.busy.contains(display.id))
                 }
                 Spacer(minLength: 0)
             }
+            if showModes { modeList }
         }
-        .onAppear { brightness = display.brightness }
+        .onAppear {
+            brightness = display.brightness
+            boost = display.boost
+        }
         .onChange(of: display.brightness) { _, value in
             if abs(value - brightness) > 0.01 { brightness = value }
         }
-    }
-
-    private var canUpsample: Bool { !display.isBuiltIn && !display.isOwnVirtual }
-
-    private var resolutionTitle: String {
-        switch display.upsample {
-        case .hiDPI: return "5K HiDPI"
-        case .moreSpace: return "5K 更多空间"
-        case .off: return "分辨率"
+        .onChange(of: display.boost) { _, value in
+            if abs(value - boost) > 0.01 { boost = value }
         }
     }
 
-    @ViewBuilder
-    private func check(_ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            if on { Label(title, systemImage: "checkmark") } else { Text(title) }
+    private var hiDPIHelp: String {
+        if display.hiDPICounterpart != nil {
+            return display.isHiDPI ? "关闭 HiDPI：同尺寸改用普通模式" : "打开 HiDPI：同尺寸按 2 倍像素渲染，文字更清晰"
         }
+        return display.isHiDPI ? "这个尺寸只有 HiDPI 模式" : "这个尺寸没有 HiDPI 模式，可在“显示器”页写入 HiDPI 档位"
+    }
+
+    private var modeList: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if display.refreshRates.count > 1 {
+                HStack(spacing: 4) {
+                    Text("刷新率 Hz").font(.system(size: 10.5)).foregroundStyle(.secondary).fixedSize()
+                    ForEach(display.refreshRates, id: \.self) { rate in
+                        let on = display.currentResolution?.currentRefreshRate == rate
+                        Button(refreshLabel(rate).replacingOccurrences(of: " Hz", with: "")) {
+                            if !on { model.applyRefreshRate(rate, to: display.id) }
+                        }
+                            .buttonStyle(.bordered).controlSize(.mini).fixedSize()
+                            .tint(on ? .accentColor : nil)
+                            .fontWeight(on ? .semibold : .regular)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+            VStack(spacing: 0) {
+                ForEach(display.resolutions) { option in
+                    Button {
+                        if !option.isCurrent { model.applyResolution(option, to: display.id) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark").font(.system(size: 10, weight: .semibold))
+                                .opacity(option.isCurrent ? 1 : 0)
+                            Text(option.sizeLabel).font(.system(size: 11.5)).monospacedDigit()
+                            if display.isNativeSize(option) {
+                                Text("原生").font(.system(size: 10)).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 4)
+                            ModeTag(text: option.hiDPI ? "HiDPI" : "普通", highlighted: option.hiDPI)
+                        }
+                        .padding(.horizontal, 8).padding(.vertical, 3.5)
+                        .background(option.isCurrent ? Color.accentColor.opacity(0.12) : .clear,
+                                    in: RoundedRectangle(cornerRadius: 5))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .disabled(model.busy.contains(display.id))
+            if !display.isAtNativeSize {
+                Button("恢复原生尺寸") { model.restoreNative(display.id) }
+                    .buttonStyle(.link).font(.system(size: 11))
+            }
+        }
+        .padding(.leading, 2)
+    }
+}
+
+/// 分辨率行尾的小标签：HiDPI 用强调色，普通模式用灰色。
+private struct ModeTag: View {
+    let text: String
+    let highlighted: Bool
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9.5, weight: .semibold))
+            .padding(.horizontal, 5).padding(.vertical, 1)
+            .foregroundStyle(highlighted ? Color.accentColor : .secondary)
+            .background((highlighted ? Color.accentColor : Color.secondary).opacity(0.14), in: Capsule())
     }
 }
 

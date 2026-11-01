@@ -50,11 +50,13 @@ The maximum recording length is 30 seconds. Frame rate and maximum width can be 
 The Displays page exposes the brightness, resolution, refresh rate, and HDR controls supported by each display. External display DDC capabilities depend on the display, cable, adapter, and connection method.
 
 - **Brightness:** Meridian prefers the control method supported by the device. Software dimming changes the display output and does not replace backlight control.
-- **5K HiDPI:** mirrors through a higher-resolution virtual display and scales the result to the physical display, improving text appearance at the cost of additional rendering work.
-- **More Space:** increases the logical desktop area, making interface elements smaller.
-- **Restore Native:** stops upscaling and restores the physical display mode.
+- **Resolution:** by default only HiDPI sizes with the panel's aspect ratio are listed (for a 2560×1440 panel, 1280×720 through 2880×1620). They render directly on the physical display without a virtual display, so HDR and high refresh rates are kept. Turn on "Show all modes" to see every mode macOS reports.
+- **Refresh rate:** switched separately without changing the resolution. If the display was in HDR and drops out of it after the switch, HDR is turned back on.
+- **HiDPI sizes:** writes a system display override that adds the intermediate HiDPI sizes for an external display. Requires the administrator helper and takes effect after reconnecting the cable or logging out.
+- **HDR:** in HDR mode the brightness slider controls macOS's SDR brightness (the same as the HDR brightness slider in Control Center) instead of DDC and software dimming, so HDR highlights are not clipped. "Brightness boost" uses the HDR headroom to raise SDR content above 100%. Optionally turn off Night Shift and True Tone while in HDR.
+- **Restore Native:** returns to the panel's native size (HiDPI when available) and keeps the current refresh rate.
 - **F1/F2:** enable brightness-key handling on the Displays page and grant Input Monitoring if macOS asks.
-- **Display overrides:** installing or removing system display overrides requires the administrator helper. This is separate from temporary virtual-display upscaling.
+- **Virtual displays:** can be created as HDR (Display P3 + PQ), which keeps HDR content when mirrored or recorded to an HDR display.
 
 If the screen goes black, flickers, or windows are rearranged, first restore the native mode, disable the relevant display feature, and check the connection. Avoid letting multiple tools continuously write brightness or color tables to the same display.
 
