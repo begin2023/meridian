@@ -21,7 +21,7 @@ Meridian means "meridian": a reference line for observing and calibrating the st
 
 The interface is built with SwiftUI and AppKit and supports light, dark, and system appearance. Features run in the same application process. Display overrides and fan writes that require administrator access are handled by a separate helper.
 
-> **Project status: 1.0.0 initial release.** The first GitHub build is an unnotarized Apple Silicon build, so macOS may require the user to allow it manually. Developer ID notarization and testing on additional Mac models have not been completed. Download and signing details are defined by the corresponding [Release](https://github.com/begin2023/meridian/releases). See the release checklist in [docs/RELEASING.md](docs/RELEASING.md) for internal details.
+> **Project status: 1.0.1.** The GitHub build is an unnotarized Apple Silicon build, so macOS may require the user to allow it manually. Developer ID notarization and testing on additional Mac models have not been completed. Download and signing details are defined by the corresponding [Release](https://github.com/begin2023/meridian/releases). See the release checklist in [docs/RELEASING.md](docs/RELEASING.md) for internal details.
 
 ## Features
 
@@ -51,7 +51,7 @@ Download the appropriate build from the **Releases** page.
 2. Open Meridian and use its menu bar icon to access the control center.
 3. Enable the features you need and grant their permissions.
 
-Signing, notarization, architecture, and OS requirements are defined by each Release. The initial 1.0.0 build is ad-hoc signed, so other Macs do not treat its developer identity as verified by Apple. On first launch, you may need to Control-click the app and choose **Open**, or allow it under **System Settings → Privacy & Security**. Read the [FAQ](docs/FAQ.en.md) before changing any global security setting.
+Signing, notarization, architecture, and OS requirements are defined by each Release. The GitHub build is ad-hoc signed, so other Macs do not treat its developer identity as verified by Apple. On first launch, you may need to Control-click the app and choose **Open**, or allow it under **System Settings → Privacy & Security**. Read the [FAQ](docs/FAQ.en.md) before changing any global security setting.
 
 ## Quick start
 

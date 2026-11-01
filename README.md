@@ -21,7 +21,7 @@ Meridian 取“子午线”之意：它是一条观察与校准系统状态的�
 
 界面使用 SwiftUI 与 AppKit，支持浅色、深色和跟随系统外观。各功能直接运行在同一个应用进程中；需要管理员权限的显示覆盖与风扇写入由独立助手执行。
 
-> **项目状态：1.0.0 初版。** 首个 GitHub 包为 Apple Silicon 未公证构建，macOS 可能要求用户手动允许打开；尚未完成 Developer ID 公证和面向其他机型的验证。下载与签名状态以 [Releases](https://github.com/begin2023/meridian/releases) 中的说明为准，发布细节见[发布清单](docs/RELEASING.md)。
+> **项目状态：1.0.1。** GitHub 包为 Apple Silicon 未公证构建，macOS 可能要求用户手动允许打开；尚未完成 Developer ID 公证和面向其他机型的验证。下载与签名状态以 [Releases](https://github.com/begin2023/meridian/releases) 中的说明为准，发布细节见[发布清单](docs/RELEASING.md)。
 
 ## 功能一览
 
@@ -51,7 +51,7 @@ Meridian 取“子午线”之意：它是一条观察与校准系统状态的�
 2. 打开 Meridian，从菜单栏图标进入控制中心。
 3. 在“通用”中按需开启功能，并完成对应权限授权。
 
-签名、公证、架构与系统要求以每个 Release 的说明为准。首发的 1.0.0 包使用 ad-hoc 签名，其他 Mac 默认不会将开发者身份视为已由 Apple 验证；首次打开可能需要右键选择“打开”，或在“系统设置 → 隐私与安全性”中允许。遇到提示时请先阅读[常见问题](docs/FAQ.md)，不要修改系统的全局安全设置。
+签名、公证、架构与系统要求以每个 Release 的说明为准。GitHub 发布包使用 ad-hoc 签名，其他 Mac 默认不会将开发者身份视为已由 Apple 验证；首次打开可能需要右键选择“打开”，或在“系统设置 → 隐私与安全性”中允许。遇到提示时请先阅读[常见问题](docs/FAQ.md)，不要修改系统的全局安全设置。
 
 ## 快速开始
 

@@ -76,7 +76,7 @@ spctl --assess --type execute --verbose=4 dist/Meridian.app
 
 ### 3. 版本、架构与回归
 
-- 在 `Resources/Info.plist` 设置发布版本号和递增构建号。当前仍为 `1.0.0` / `1`，尚未与发布 tag 确定对应关系。
+- 在 `Resources/Info.plist` 设置发布版本号和递增构建号，确保 tag 与版本号一致（当前为 `1.0.1` / `2`）。
 - 当前为 arm64；若只发布 Apple Silicon 包，在文件名和页面写明，不能声称 Universal。
 - 验证最低支持的 macOS 26，而不只验证当前开发机系统。
 - 在未运行过开发版的 Mac 或干净用户中测试首次安装、各权限授权、登录项、更新和卸载。
