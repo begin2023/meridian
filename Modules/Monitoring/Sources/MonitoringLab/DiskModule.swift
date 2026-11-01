@@ -1,4 +1,5 @@
 import AppKit
+import DiskArbitration
 import IOKit
 
 // 磁盘模块:挂载卷用量 + 全盘读写吞吐(IOKit 差分,不可用时优雅降级)。
@@ -83,10 +84,12 @@ final class DiskModule: BaseModule {
         ) else { return [] }
 
         var volumes: [Volume] = []
+        let session = DASessionCreate(kCFAllocatorDefault)
         for url in urls {
             let path = url.path
             // 跳过系统数据卷(与根卷重复)和隐藏挂载点
             guard path == "/" || path.hasPrefix("/Volumes/") else { continue }
+            if let session, MountedVolumeFilter.isVirtualDevice(url, session: session) { continue }
             guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
             let total = UInt64(values.volumeTotalCapacity ?? 0)
             // important-usage 容量包含可清除空间。

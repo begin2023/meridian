@@ -1,4 +1,5 @@
 import Darwin
+import DiskArbitration
 import Foundation
 import IOKit
 
@@ -276,11 +277,13 @@ public final class SystemSampler: @unchecked Sendable {
         ]
         guard let urls = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: keys,
                                                                options: [.skipHiddenVolumes]) else { return [] }
+        let session = DASessionCreate(kCFAllocatorDefault)
         return urls.compactMap { url in
             let path = url.path
             guard path == "/" || path.hasPrefix("/Volumes/"),
                   let values = try? url.resourceValues(forKeys: Set(keys)),
                   let total = values.volumeTotalCapacity, total > 0 else { return nil }
+            if let session, MountedVolumeFilter.isVirtualDevice(url, session: session) { return nil }
             let free = max(Int(values.volumeAvailableCapacityForImportantUsage ?? 0), values.volumeAvailableCapacity ?? 0)
             return SystemSnapshot.Volume(name: values.volumeName ?? (path as NSString).lastPathComponent,
                                          mountPath: path, totalBytes: UInt64(total), freeBytes: UInt64(max(free, 0)))

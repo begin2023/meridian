@@ -215,8 +215,9 @@ enum WidgetRenderer {
             return .stacked(lines: ["↑ " + Format.compactRate(s.netUpPerSecond) + "/s",
                                    "↓ " + Format.compactRate(s.netDownPerSecond) + "/s"], width: 54)
         case .disk:
-            return .stacked(lines: ["R " + Format.compactRate(s.diskReadPerSecond) + "/s",
-                                   "W " + Format.compactRate(s.diskWritePerSecond) + "/s"], width: 54)
+            let root = s.volumes.first { $0.mountPath == "/" } ?? s.volumes.first
+            let used = root.map { Format.percent($0.usedFraction * 100) } ?? "--"
+            return .twoLine(top: "磁盘", bottom: used, width: 30)
         case .temperature:
             let value = reading?.cpuAverage.map { "\(Int($0.rounded()))°" } ?? "--"
             return .twoLine(top: "温度", bottom: value, width: 30)
