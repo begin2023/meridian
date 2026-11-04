@@ -6,7 +6,7 @@ import SwiftUI
 
 enum PanelRoute: Equatable {
     case home
-    case cpu, memory, network, disk
+    case cpu, memory, network, disk, gpu
     case thermal
 }
 
@@ -37,6 +37,7 @@ struct ControlCenterView: View {
         case .memory: DetailContainer(title: "内存", state: state, coordinator: coordinator) { MemoryDetail(model: coordinator.telemetry) }
         case .network: DetailContainer(title: "网络", state: state, coordinator: coordinator) { NetworkDetail(model: coordinator.telemetry) }
         case .disk: DetailContainer(title: "磁盘", state: state, coordinator: coordinator) { DiskDetail(model: coordinator.telemetry) }
+        case .gpu: DetailContainer(title: "GPU", state: state, coordinator: coordinator) { GPUDetail(model: coordinator.telemetry) }
         case .thermal: DetailContainer(title: "风扇与温度", state: state, coordinator: coordinator) { ThermalDetail(model: coordinator.thermal) }
         }
     }
@@ -583,6 +584,14 @@ private struct TelemetryCard: View {
                                values: model.downHistory, secondary: model.upHistory, color: .cyan) { state.route = .network }
                     MetricTile(title: "磁盘", value: "R \(Format.compactRate(s.diskReadPerSecond)) W \(Format.compactRate(s.diskWritePerSecond))",
                                values: model.readHistory, secondary: model.writeHistory, color: .indigo) { state.route = .disk }
+                }
+                if s.gpu.available {
+                    GridRow {
+                        MetricTile(title: "GPU", value: Format.percent(s.gpu.utilization), values: model.gpuHistory,
+                                   max: 100, color: .purple) { state.route = .gpu }
+                        MetricTile(title: "GPU 功耗", value: s.gpu.powerWatts.map(Format.watts) ?? "--",
+                                   values: model.gpuPowerHistory, color: .orange) { state.route = .gpu }
+                    }
                 }
             }
         }

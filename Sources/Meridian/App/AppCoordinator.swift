@@ -118,7 +118,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// meridian://panel[/cpu|memory|network|disk|thermal] · meridian://open/<overview|capture|display|thermal|pointer|telemetry|general>
+    /// meridian://panel[/cpu|memory|network|disk|gpu|thermal] · meridian://open/<overview|capture|display|thermal|pointer|telemetry|general>
     /// · meridian://resolution/<native|2560x1440> · meridian://refresh/<hz> · meridian://hdr/<on|off|toggle> · meridian://boost/<100–400>
     /// · meridian://capture|ocr|pin|gif — 供启动器、快捷指令和脚本调用。
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -133,6 +133,7 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
                 case "memory": route = .memory
                 case "network": route = .network
                 case "disk": route = .disk
+                case "gpu": route = .gpu
                 case "thermal": route = .thermal
                 default: route = .home
                 }

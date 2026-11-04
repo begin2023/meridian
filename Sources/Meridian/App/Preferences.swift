@@ -58,14 +58,14 @@ enum Feature: String, CaseIterable, Identifiable, Codable {
         case .display: return "外接屏亮度、HiDPI 分辨率与刷新率、HDR 和虚拟屏"
         case .thermal: return "温度传感器、风扇转速，自动 / 温控曲线 / 固定转速"
         case .pointer: return "鼠标滚轮平滑滚动与方向反转，可按应用设置例外"
-        case .telemetry: return "CPU、内存、网络、磁盘实时数据与进程排行"
+        case .telemetry: return "CPU、内存、网络、磁盘、GPU 实时数据与进程排行"
         }
     }
 }
 
 /// 菜单栏上可以单独常驻的数据小组件。
 enum MenuWidget: String, CaseIterable, Identifiable, Codable {
-    case cpu, memory, network, disk, temperature, fan
+    case cpu, memory, network, disk, gpu, temperature, fan
 
     var id: String { rawValue }
 
@@ -75,6 +75,7 @@ enum MenuWidget: String, CaseIterable, Identifiable, Codable {
         case .memory: return "内存"
         case .network: return "网速"
         case .disk: return "磁盘"
+        case .gpu: return "GPU"
         case .temperature: return "CPU 温度"
         case .fan: return "风扇转速"
         }
@@ -82,7 +83,7 @@ enum MenuWidget: String, CaseIterable, Identifiable, Codable {
 
     var feature: Feature {
         switch self {
-        case .cpu, .memory, .network, .disk: return .telemetry
+        case .cpu, .memory, .network, .disk, .gpu: return .telemetry
         case .temperature, .fan: return .thermal
         }
     }

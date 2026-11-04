@@ -282,6 +282,96 @@ struct DiskDetail: View {
     }
 }
 
+// MARK: - GPU
+
+struct GPUDetail: View {
+    @ObservedObject var model: TelemetryModel
+
+    var body: some View {
+        let g = model.snapshot.gpu
+        VStack(spacing: 10) {
+            ChartBox(values: model.gpuHistory, maxValue: 100, color: .purple) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(Format.percent(g.utilization)).font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
+                    Text("利用率").foregroundStyle(.secondary).font(.system(size: 12))
+                    Spacer()
+                    if let mhz = g.averageMegahertz, (g.idleFraction ?? 1) < 0.999 {
+                        Text(Format.megahertz(mhz)).foregroundStyle(.secondary).font(.system(size: 12)).monospacedDigit()
+                    }
+                }
+            }
+            if g.powerWatts != nil || !model.gpuPowerHistory.isEmpty {
+                ChartBox(height: 44, values: model.gpuPowerHistory, color: .orange) {
+                    HStack(spacing: 18) {
+                        StatValue(title: "功耗", value: g.powerWatts.map(Format.watts) ?? "--", color: .orange)
+                        StatValue(title: "已用内存", value: g.memoryInUse > 0 ? Format.memory(g.memoryInUse) : "--")
+                        Spacer()
+                    }
+                }
+            }
+            if !g.states.isEmpty {
+                FrequencyStates(gpu: g)
+            }
+            ProcessList(title: "GPU 占用最高的进程", rows: model.ranking.byGPU) { String(format: "%.1f%%", $0.gpuPercent) }
+            Text(footer(g))
+                .font(.system(size: 10.5)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .telemetryDetail(model, kind: .gpu)
+    }
+
+    private func footer(_ g: GPUSnapshot) -> String {
+        var parts: [String] = []
+        if !g.model.isEmpty { parts.append(g.model) }
+        if g.coreCount > 0 { parts.append("\(g.coreCount) 核") }
+        if let top = g.maxMegahertz { parts.append("最高 \(Format.megahertz(top))") }
+        let head = parts.isEmpty ? "" : parts.joined(separator: " · ") + "。"
+        return head + "利用率包含系统的桌面合成；统一内存没有独立显存，已用内存只显示绝对值。"
+    }
+}
+
+/// 采样窗口内各频率档的停留时间。每档一根竖条，空闲时间单独列出。
+private struct FrequencyStates: View {
+    let gpu: GPUSnapshot
+
+    var body: some View {
+        let top = max(gpu.states.map(\.residency).max() ?? 0, 0.01)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("频率分布").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                Spacer()
+                if let idle = gpu.idleFraction {
+                    Text("空闲 \(Format.percent(idle * 100))").font(.system(size: 10.5)).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(Array(gpu.states.enumerated()), id: \.offset) { _, state in
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(state.residency > 0.005 ? Color.purple : Color.secondary.opacity(0.18))
+                            .frame(height: max(2, 34 * state.residency / top))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .help(state.megahertz > 0
+                          ? "\(Format.megahertz(state.megahertz)) · \(Format.percent(state.residency * 100))"
+                          : Format.percent(state.residency * 100))
+                }
+            }
+            .frame(height: 34)
+            if let low = gpu.states.first?.megahertz, let high = gpu.states.last?.megahertz, high > 0 {
+                HStack {
+                    Text(Format.megahertz(low))
+                    Spacer()
+                    Text(Format.megahertz(high))
+                }
+                .font(.system(size: 10, design: .rounded)).foregroundStyle(.secondary).monospacedDigit()
+            }
+        }
+        .padding(12)
+        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
 // MARK: - 散热
 
 struct ThermalDetail: View {

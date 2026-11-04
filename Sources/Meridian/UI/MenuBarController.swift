@@ -50,7 +50,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         coordinator.telemetry.$snapshot
             .sink { [weak self] snapshot in
                 guard let self else { return }
-            self.renderWidgets(only: [.cpu, .memory, .network, .disk], snapshot: snapshot,
+            self.renderWidgets(only: [.cpu, .memory, .network, .disk, .gpu], snapshot: snapshot,
                                    reading: self.coordinator.thermal.reading)
             }
             .store(in: &cancellables)
@@ -182,6 +182,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         case .memory: route = .memory
         case .network: route = .network
         case .disk: route = .disk
+        case .gpu: route = .gpu
         case .temperature, .fan: route = .thermal
         }
         toggleControlCenter(route: route, from: sender)
@@ -218,6 +219,8 @@ enum WidgetRenderer {
             let root = s.volumes.first { $0.mountPath == "/" } ?? s.volumes.first
             let used = root.map { Format.percent($0.usedFraction * 100) } ?? "--"
             return .twoLine(top: "磁盘", bottom: used, width: 30)
+        case .gpu:
+            return .twoLine(top: "GPU", bottom: s.gpu.available ? Format.percent(s.gpu.utilization) : "--", width: 30)
         case .temperature:
             let value = reading?.cpuAverage.map { "\(Int($0.rounded()))°" } ?? "--"
             return .twoLine(top: "温度", bottom: value, width: 30)

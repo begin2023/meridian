@@ -7,6 +7,7 @@ enum TelemetryDetailKind: Hashable {
     case memory
     case network
     case disk
+    case gpu
 }
 
 /// 系统监控：采样在后台串行队列执行；进程排行只在有界面在看时扫描。
@@ -26,6 +27,8 @@ final class TelemetryModel: ObservableObject {
     @Published private(set) var upHistory: [Double] = []
     @Published private(set) var readHistory: [Double] = []
     @Published private(set) var writeHistory: [Double] = []
+    @Published private(set) var gpuHistory: [Double] = []
+    @Published private(set) var gpuPowerHistory: [Double] = []
     @Published private(set) var running = false
 
     private let sampler = SystemSampler()
@@ -66,6 +69,7 @@ final class TelemetryModel: ObservableObject {
     func beginDetail(_ kind: TelemetryDetailKind) {
         let hadDetails = hasDetails
         let networkWasVisible = hasDetail(.network)
+        let gpuWasVisible = hasDetail(.gpu)
         detailCounts[kind, default: 0] += 1
 
         if !hadDetails {
@@ -80,6 +84,12 @@ final class TelemetryModel: ObservableObject {
                 rankingSampler.resetNetworkBaseline()
             }
             requestPublicIP()
+        }
+        if kind == .gpu, !gpuWasVisible, hadDetails {
+            rankingPasses = 0
+            rankingQueue.async { [rankingSampler] in
+                rankingSampler.resetGPUBaseline()
+            }
         }
         scheduleRanking(after: 0.05)
         if running { reschedule() }
@@ -156,8 +166,9 @@ final class TelemetryModel: ObservableObject {
         guard !rankingInFlight, hasDetails else { return }
         rankingInFlight = true
         let includeNetwork = hasDetail(.network)
+        let includeGPU = hasDetail(.gpu)
         rankingQueue.async { [weak self, rankingSampler] in
-            let value = rankingSampler.rankProcesses(includeNetwork: includeNetwork)
+            let value = rankingSampler.rankProcesses(includeNetwork: includeNetwork, includeGPU: includeGPU)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard let self else { return }
@@ -181,6 +192,10 @@ final class TelemetryModel: ObservableObject {
         push(&upHistory, value.netUpPerSecond)
         push(&readHistory, value.diskReadPerSecond)
         push(&writeHistory, value.diskWritePerSecond)
+        if value.gpu.available {
+            push(&gpuHistory, value.gpu.utilization)
+            if let watts = value.gpu.powerWatts { push(&gpuPowerHistory, watts) }
+        }
     }
 
     private func push(_ history: inout [Double], _ value: Double) {

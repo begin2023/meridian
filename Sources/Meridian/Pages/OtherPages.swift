@@ -229,11 +229,22 @@ struct TelemetryPage: View {
                     DiskDetail(model: model)
                 }
             }
+            if model.snapshot.gpu.available {
+                HStack(alignment: .top, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("GPU").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+                        GPUDetail(model: model)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // 单独一行时保持与上面两列同宽。
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                }
+            }
             Group2(title: "采样") {
                 SliderRow(title: "后台采样间隔", value: $preferences.telemetryInterval, range: 1...10, step: 1,
                           format: { "\(Int($0)) 秒" })
             }
-            MenuWidgetToggles(preferences: preferences, widgets: [.cpu, .memory, .network, .disk])
+            MenuWidgetToggles(preferences: preferences, widgets: [.cpu, .memory, .network, .disk, .gpu])
         }
     }
 }

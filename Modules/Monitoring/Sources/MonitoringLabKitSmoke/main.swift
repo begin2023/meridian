@@ -29,6 +29,23 @@ MainActor.assumeIsolated {
         failure = "process ranking did not produce CPU/memory rows"
         return
     }
+    // GPU：Apple Silicon 上 IOAccelerator 必在；IOReport 第二帧起应有功耗与频率档位。
+    if live.gpu.available {
+        guard live.gpu.utilization >= 0, live.gpu.utilization <= 100 else {
+            failure = "GPU utilization out of range: \(live.gpu.utilization)"
+            return
+        }
+        print("Monitoring GPU: \(live.gpu.model) cores=\(live.gpu.coreCount) util=\(Int(live.gpu.utilization))% "
+              + "power=\(live.gpu.powerWatts.map { String(format: "%.2fW", $0) } ?? "-") "
+              + "avg=\(live.gpu.averageMegahertz.map { "\(Int($0))MHz" } ?? "-") max=\(live.gpu.maxMegahertz.map { "\(Int($0))MHz" } ?? "-") "
+              + "states=\(live.gpu.states.count) mem=\(live.gpu.memoryInUse)")
+        let gpuRanker = SystemSampler()
+        _ = gpuRanker.rankProcesses(includeGPU: true)
+        Thread.sleep(forTimeInterval: 1.1)
+        let gpuRanking = gpuRanker.rankProcesses(includeGPU: true)
+        print("Monitoring GPU ranking: " + gpuRanking.byGPU.prefix(3).map { "\($0.name) \(String(format: "%.1f", $0.gpuPercent))%" }
+            .joined(separator: ", "))
+    }
     let networkNames = ranking.byNetwork.prefix(3).map(\.name).joined(separator: ",")
     print("Monitoring sampler live: interface=\(live.netInterface) networkRanking=\(ranking.byNetwork.count) top=\(networkNames)")
 

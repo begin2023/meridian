@@ -37,6 +37,7 @@ public struct SystemSnapshot: Sendable, Equatable {
     public var diskReadPerSecond: Double = 0
     public var diskWritePerSecond: Double = 0
     public var volumes: [Volume] = []
+    public var gpu = GPUSnapshot()
 
     public var memoryFraction: Double { memoryTotal > 0 ? Double(memoryUsed) / Double(memoryTotal) : 0 }
 
@@ -54,6 +55,8 @@ public struct ProcessActivity: Sendable, Equatable, Identifiable {
     public let diskWritePerSecond: Double
     public let networkReceivePerSecond: Double
     public let networkSendPerSecond: Double
+    /// 0...100，仅在请求 GPU 排行时填充。
+    public var gpuPercent: Double = 0
 }
 
 public struct ProcessRanking: Sendable, Equatable {
@@ -61,6 +64,7 @@ public struct ProcessRanking: Sendable, Equatable {
     public var byMemory: [ProcessActivity] = []
     public var byDisk: [ProcessActivity] = []
     public var byNetwork: [ProcessActivity] = []
+    public var byGPU: [ProcessActivity] = []
     public init() {}
 }
 
@@ -84,6 +88,7 @@ public final class SystemSampler: @unchecked Sendable {
     private var previousProcessNetwork: [pid_t: (received: UInt64, sent: UInt64)] = [:]
     private var previousProcessNetworkTime: UInt64 = 0
     private var identityCache: [pid_t: (name: String, path: String?)] = [:]
+    private let gpuSampler = GPUSampler()
     private let timebase: mach_timebase_info_data_t = {
         var info = mach_timebase_info_data_t()
         mach_timebase_info(&info)
@@ -99,6 +104,7 @@ public final class SystemSampler: @unchecked Sendable {
         sampleMemory(into: &snapshot)
         sampleNetwork(into: &snapshot, now: now)
         sampleDisk(into: &snapshot, now: now)
+        snapshot.gpu = gpuSampler.sample(now: now)
         return snapshot
     }
 
@@ -266,7 +272,7 @@ public final class SystemSampler: @unchecked Sendable {
 
     // MARK: 进程排行（仅详情可见时调用）
 
-    public func rankProcesses(limit: Int = 6, includeNetwork: Bool = false) -> ProcessRanking {
+    public func rankProcesses(limit: Int = 6, includeNetwork: Bool = false, includeGPU: Bool = false) -> ProcessRanking {
         let now = DispatchTime.now().uptimeNanoseconds
         let elapsed = previousProcessScan > 0 && now > previousProcessScan ? Double(now - previousProcessScan) : 0
         previousProcessScan = now
@@ -367,6 +373,22 @@ public final class SystemSampler: @unchecked Sendable {
             }
         }
 
+        if includeGPU {
+            let usage = gpuSampler.processUsage(now: DispatchTime.now().uptimeNanoseconds)
+            var rowIndexes: [pid_t: Int] = [:]
+            for (index, row) in rows.enumerated() { rowIndexes[row.pid] = index }
+            for (pid, percent) in usage where percent >= 0.1 {
+                if let index = rowIndexes[pid] {
+                    rows[index].gpuPercent = percent
+                } else {
+                    let identity = identity(of: pid)
+                    rows.append(ProcessActivity(pid: pid, name: identity.name, path: identity.path, cpuPercent: 0,
+                                                memoryBytes: 0, diskReadPerSecond: 0, diskWritePerSecond: 0,
+                                                networkReceivePerSecond: 0, networkSendPerSecond: 0, gpuPercent: percent))
+                }
+            }
+        }
+
         var ranking = ProcessRanking()
         ranking.byCPU = Array(rows.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(limit))
         ranking.byMemory = Array(rows.sorted { $0.memoryBytes > $1.memoryBytes }.prefix(limit))
@@ -376,6 +398,7 @@ public final class SystemSampler: @unchecked Sendable {
         ranking.byNetwork = Array(rows.filter { $0.networkReceivePerSecond + $0.networkSendPerSecond > 1 }
             .sorted { $0.networkReceivePerSecond + $0.networkSendPerSecond > $1.networkReceivePerSecond + $1.networkSendPerSecond }
             .prefix(limit))
+        ranking.byGPU = Array(rows.filter { $0.gpuPercent >= 0.1 }.sorted { $0.gpuPercent > $1.gpuPercent }.prefix(limit))
         return ranking
     }
 
@@ -461,6 +484,11 @@ public final class SystemSampler: @unchecked Sendable {
         previousProcessIO.removeAll()
         previousProcessNetwork.removeAll()
         previousProcessNetworkTime = 0
+        gpuSampler.resetProcessBaseline()
+    }
+
+    public func resetGPUBaseline() {
+        gpuSampler.resetProcessBaseline()
     }
 
     public func resetNetworkBaseline() {

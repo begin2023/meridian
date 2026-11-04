@@ -159,6 +159,12 @@ enum Format {
         return gb >= 1 ? String(format: "%.1f GB", gb) : String(format: "%.0f MB", Double(value) / 1_048_576)
     }
 
+    static func watts(_ value: Double) -> String {
+        value < 1 ? String(format: "%.2f W", value) : String(format: "%.1f W", value)
+    }
+
+    static func megahertz(_ value: Double) -> String { "\(Int(value.rounded())) MHz" }
+
     static func rpm(_ value: Double) -> String { "\(Int(value.rounded())) RPM" }
 }
 
