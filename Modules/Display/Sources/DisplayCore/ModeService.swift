@@ -107,7 +107,16 @@ public enum ModeService {
     /// Switches the display to a previously enumerated mode. Public modes go
     /// through the supported configuration path; CGS indices fall back to the
     /// private call inside the same transaction.
+    ///
+    /// 借位模式在这里被最后一道拦下：同刷新率下没有与帧缓冲同比例的真实链路时序时，
+    /// WindowServer 会把画面塞进一个尺寸对不上的 timing（5120×2880@75 → 1280×1024@75），
+    /// 桌面几何还报 2560×1440，实际已掉到低分辨率并变形。界面层的过滤可被绕过，
+    /// 这一层不会：它在开启配置事务之前就返回错误，屏幕不会黑一下。
     public static func apply(mode: DisplayModeInfo, to display: CGDirectDisplayID) throws {
+        guard mode.isCurrent || ModeValidation.isRenderable(mode, in: modes(for: display)) else {
+            throw ModeServiceError.unsupportedMode(mode)
+        }
+
         var config: CGDisplayConfigRef?
         guard CGBeginDisplayConfiguration(&config) == .success, let config else {
             throw ModeServiceError.configurationFailed("无法开始显示器配置事务。")
@@ -135,6 +144,7 @@ public enum ModeService {
 public enum ModeServiceError: LocalizedError {
     case configurationFailed(String)
     case modeMissing(DisplayModeInfo)
+    case unsupportedMode(DisplayModeInfo)
 
     public var errorDescription: String? {
         switch self {
@@ -142,6 +152,8 @@ public enum ModeServiceError: LocalizedError {
             return message
         case .modeMissing(let mode):
             return "找不到模式 \(mode.label) 对应的显示模式。"
+        case .unsupportedMode(let mode):
+            return "显示器在 \(Int(mode.refreshRate.rounded()))Hz 下没有与 \(mode.pixelWidth)×\(mode.pixelHeight) 同比例的刷新时序，切过去会把画面压进别的分辨率。已阻止。"
         }
     }
 }

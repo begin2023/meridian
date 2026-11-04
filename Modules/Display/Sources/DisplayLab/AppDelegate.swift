@@ -207,6 +207,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func switchMode(_ sender: NSMenuItem) {
         guard let selection = sender.representedObject as? ModeSelection else { return }
+        // 借位模式（同刷新率下没有同比例的真实链路时序）会把画面压进别的分辨率。
+        // 菜单本身已过滤，这里再挡一层，防止其它入口绕过。
+        if let info = displayManager.display(with: selection.displayIdentifier),
+           !ModeValidation.isRenderable(selection.mode, in: info.modes) {
+            let alert = NSAlert()
+            alert.messageText = "切换分辨率失败"
+            alert.informativeText = DisplayBridgeError.unsupportedMode(selection.mode).localizedDescription
+            alert.runModal()
+            return
+        }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
                 try ModeService.apply(mode: selection.mode, to: selection.displayIdentifier)

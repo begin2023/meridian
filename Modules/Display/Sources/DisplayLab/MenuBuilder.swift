@@ -256,13 +256,15 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let info = CoreDisplayBridge.createInfoDictionary(for: display.identifier)
         let nativeWidth = info?["kCGDisplayPixelWidth"] as? Int ?? display.pixelWidth
         let nativeHeight = info?["kCGDisplayPixelHeight"] as? Int ?? display.pixelHeight
-        guard nativeWidth > 0, nativeHeight > 0 else { return display.sortedModes }
+        // 先剔掉借位模式（同刷新率下没有同比例的真实链路时序），再按比例精选。
+        let sorted = ModeValidation.usableModes(in: display.sortedModes)
+        guard nativeWidth > 0, nativeHeight > 0 else { return sorted }
 
         let nativeAspect = Double(nativeWidth) / Double(nativeHeight)
         let standardSteps: Set<Double> = [0.5, 0.625, 0.75]
         var seenLabels = Set<String>()
         var result: [DisplayModeInfo] = []
-        for mode in display.sortedModes {
+        for mode in sorted {
             if !mode.isCurrent {
                 let matchesNative = mode.pixelWidth == nativeWidth && mode.pixelHeight == nativeHeight
                 let step = Double(mode.pixelWidth) / Double(nativeWidth)

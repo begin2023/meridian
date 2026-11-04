@@ -98,6 +98,59 @@ struct DisplayLabKitSmoke {
             fail("restart lifecycle")
         }
 
+        // 借位模式校验：回放真实面板的数据——5120×2880 帧缓冲在同一刷新率下只有
+        // 144/120/60 有同比例的真实链路时序；75Hz 唯一的真实 timing 是 1280×1024@75
+        // （4:3），WindowServer 会把 5K 画面压进去并横向拉伸 4.0 倍，桌面仍谎报 2560×1440。
+        func mode(_ pw: Int, _ ph: Int, _ w: Int, _ h: Int, _ hz: Double,
+                  hidpi: Bool, current: Bool = false) -> DisplayModeInfo {
+            DisplayModeInfo(pixelWidth: pw, pixelHeight: ph, pointWidth: w, pointHeight: h,
+                            refreshRate: hz, isHiDPI: hidpi, cgsIndex: nil, isCurrent: current)
+        }
+        let panel = [
+            mode(2560, 1440, 2560, 1440, 144, hidpi: false, current: true),
+            mode(2560, 1440, 2560, 1440, 120, hidpi: false),
+            mode(2560, 1440, 2560, 1440, 60, hidpi: false),
+            mode(1280, 1024, 1280, 1024, 75, hidpi: false),
+            mode(1280, 1024, 1280, 1024, 60, hidpi: false),
+            mode(1920, 1080, 1920, 1080, 60, hidpi: false),
+            mode(5120, 2880, 2560, 1440, 144, hidpi: true, current: true),
+            mode(5120, 2880, 2560, 1440, 120, hidpi: true),
+            mode(5120, 2880, 2560, 1440, 60, hidpi: true),
+            mode(5120, 2880, 2560, 1440, 75, hidpi: true),
+            mode(5120, 2880, 2560, 1440, 72, hidpi: true),
+            mode(5120, 2880, 2560, 1440, 70, hidpi: true),
+            mode(5120, 2880, 2560, 1440, 56, hidpi: true),
+            mode(5120, 2880, 2560, 1440, 50, hidpi: true),
+            mode(3840, 2160, 1920, 1080, 50, hidpi: true),
+        ]
+        guard ModeValidation.isRenderable(mode(5120, 2880, 2560, 1440, 144, hidpi: true), in: panel) else {
+            fail("validation keeps 5120x2880 @144")
+        }
+        guard ModeValidation.isRenderable(mode(5120, 2880, 2560, 1440, 60, hidpi: true), in: panel) else {
+            fail("validation keeps 5120x2880 @60")
+        }
+        for broken in [75.0, 72.0, 70.0, 56.0] {
+            guard !ModeValidation.isRenderable(mode(5120, 2880, 2560, 1440, broken, hidpi: true), in: panel) else {
+                fail("validation rejects borrowed 5120x2880 @\(broken)")
+            }
+        }
+        guard !ModeValidation.isRenderable(mode(5120, 2880, 2560, 1440, 50, hidpi: true), in: panel) else {
+            fail("validation rejects 5120x2880 @50 (4K carrier)")
+        }
+        guard ModeValidation.isRenderable(mode(1280, 1024, 1280, 1024, 75, hidpi: false), in: panel) else {
+            fail("validation keeps the 1280x1024 @75 carrier")
+        }
+        let selectable = ModeValidation.usableModes(in: panel)
+        guard !selectable.contains(where: { $0.isHiDPI && $0.pixelWidth == 5120 && abs($0.refreshRate - 75) < 0.5 }) else {
+            fail("usableModes drops the borrowed 75Hz HiDPI mode")
+        }
+        guard selectable.contains(where: { $0.isHiDPI && $0.pixelWidth == 5120 && abs($0.refreshRate - 144) < 0.5 }) else {
+            fail("usableModes keeps the current 144Hz HiDPI mode")
+        }
+        guard ModeValidation.usableModes(in: [mode(5120, 2880, 2560, 1440, 75, hidpi: true)]).count == 1 else {
+            fail("usableModes leaves a table without carriers untouched")
+        }
+
         print("DISPLAY_KIT_SMOKE_PASS")
     }
 

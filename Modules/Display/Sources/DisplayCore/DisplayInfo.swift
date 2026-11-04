@@ -17,6 +17,18 @@ public struct DisplayModeInfo: Equatable {
     public let cgsIndex: Int?
     public let isCurrent: Bool
 
+    public init(pixelWidth: Int, pixelHeight: Int, pointWidth: Int, pointHeight: Int,
+                refreshRate: Double, isHiDPI: Bool, cgsIndex: Int?, isCurrent: Bool) {
+        self.pixelWidth = pixelWidth
+        self.pixelHeight = pixelHeight
+        self.pointWidth = pointWidth
+        self.pointHeight = pointHeight
+        self.refreshRate = refreshRate
+        self.isHiDPI = isHiDPI
+        self.cgsIndex = cgsIndex
+        self.isCurrent = isCurrent
+    }
+
     public var label: String {
         let hidpiMark = isHiDPI ? " HiDPI" : ""
         let frequency = refreshRate > 0 ? String(format: " @ %.0fHz", refreshRate) : ""

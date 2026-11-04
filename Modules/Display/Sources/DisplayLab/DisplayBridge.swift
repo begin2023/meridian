@@ -114,12 +114,15 @@ public enum DisplayBridgeError: LocalizedError {
     case displayNotFound
     case nativeModeUnknown
     case noHiDPIVariant
+    case unsupportedMode(DisplayModeInfo)
 
     public var errorDescription: String? {
         switch self {
         case .displayNotFound: return "找不到该显示器。"
         case .nativeModeUnknown: return "无法确定原生分辨率。"
         case .noHiDPIVariant: return "这个分辨率没有对应的 HiDPI / 普通模式。"
+        case .unsupportedMode(let mode):
+            return "显示器没有 \(Int(mode.refreshRate.rounded()))Hz 下与 \(mode.pixelWidth)×\(mode.pixelHeight) 同比例的刷新时序，切过去会把画面压进别的分辨率。已阻止。"
         }
     }
 }
@@ -268,6 +271,16 @@ public final class DisplayEngine {
     /// 切换前处于 HDR 的，切完确认一次，掉了就重新打开。
     public func applyMode(_ mode: DisplayModeInfo, to id: CGDirectDisplayID,
                           completion: @escaping (Error?) -> Void) {
+        // 借位模式（同刷新率下没有同比例的真实链路时序）会把画面压进别的分辨率，
+        // 在进入配置事务之前挡掉，避免屏幕黑一下再落进错误状态。
+        guard let display = displays.first(where: { $0.id == id }) else {
+            completion(DisplayBridgeError.displayNotFound)
+            return
+        }
+        guard ModeValidation.isRenderable(mode, in: display.info.modes) else {
+            completion(DisplayBridgeError.unsupportedMode(mode))
+            return
+        }
         let wasHDR = HDRService.isEnabled(id) == true
         DispatchQueue.global(qos: .userInitiated).async {
             let result: Error?
@@ -428,10 +441,12 @@ public final class DisplayEngine {
     }
 
     /// 按桌面尺寸分组：同一尺寸每个刷新率只留一个模式（优先当前模式和公开模式）。
+    /// 借位模式（同刷新率下没有同比例的真实链路时序）在这里就被剔除，列表里点不到。
     private func resolutionOptions(for display: DisplayInfo) -> [ResolutionOption] {
         var groups: [String: [DisplayModeInfo]] = [:]
         var order: [String] = []
-        for mode in display.modes where mode.pointWidth > 0 && mode.pointHeight > 0 {
+        let selectable = ModeValidation.usableModes(in: display.modes)
+        for mode in selectable where mode.pointWidth > 0 && mode.pointHeight > 0 {
             let key = "\(mode.pointWidth)x\(mode.pointHeight)x\(mode.isHiDPI)"
             if groups[key] == nil { order.append(key) }
             groups[key, default: []].append(mode)
