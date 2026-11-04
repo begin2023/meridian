@@ -1,4 +1,6 @@
 import Foundation
+import PrivilegedSupport
+import FanControlProtocol
 
 /// 风扇预设：系统自动与全速降温。
 enum FanPreset: Equatable {
@@ -8,17 +10,7 @@ enum FanPreset: Equatable {
     case sensorCurve
 }
 
-/// 控制文件协议（app → root 守护进程，见 docs/RELEASING.md）：
-/// app 每拍计算期望转速写 desired.json；daemon 每秒读取并执行 SMC 写入。
-/// expiresAt 过期后 daemon 停写，风扇回到系统自控。
-struct ControlFile: Codable {
-    var expiresAt: Double
-    var targets: [String: Double?]
-    /// 原始模式键值（F{n}Md），daemon 用 root keyinfo 确定尺寸后写入。
-    var modes: [String: Int]?
-}
-
-/// 控制服务：按每个风扇的模式计算期望转速，落盘 desired.json 交给守护进程执行。
+/// Computes fan settings and publishes short-lived authenticated requests.
 final class ControlService {
     private let client: SMCClient?
     private var latest: MonitorUpdate?
@@ -32,18 +24,15 @@ final class ControlService {
         DaemonInstaller().status == .enabled
     }
 
-    var controlFileURL: URL {
-        URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Library/Application Support/FanControlLab/desired.json")
-    }
+    private let sender = FanCommandSender()
 
     func apply(_ update: MonitorUpdate) {
         latest = update
-        writeControlFile()
+        writeFanCommand()
     }
 
     func refresh() {
-        writeControlFile()
+        writeFanCommand()
     }
 
     /// 停止控制：立即过期 + 所有已知风扇 F0Md 归零，风扇即刻回到系统自控。
@@ -54,12 +43,8 @@ final class ControlService {
                 modes["\(fan.index)"] = 0
             }
         }
-        let file = ControlFile(expiresAt: 0, targets: [:], modes: modes)
-        let directory = controlFileURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(file) {
-            try? data.write(to: controlFileURL, options: .atomic)
-        }
+        let file = FanCommand(expiresAt: 0, targets: [:], modes: modes)
+        sender.submit(file)
     }
 
     // MARK: - 预设
@@ -87,7 +72,7 @@ final class ControlService {
 
     // MARK: - 控制文件
 
-    private func writeControlFile() {
+    private func writeFanCommand() {
         guard let update = latest else { return }
         let settings = AppSettings.shared
         var targets: [String: Double?] = [:]
@@ -112,12 +97,29 @@ final class ControlService {
             modes["\(fan.index)"] = 1
             targets["\(fan.index)"] = target
         }
-        let file = ControlFile(expiresAt: Date().timeIntervalSince1970 + 5,
+        let file = FanCommand(expiresAt: Date().timeIntervalSince1970 + 5,
                                targets: targets, modes: modes)
-        let directory = controlFileURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(file) {
-            try? data.write(to: controlFileURL, options: .atomic)
+        sender.submit(file)
+    }
+}
+
+/// Coalesce updates rather than building an unbounded socket work queue.
+private final class FanCommandSender {
+    private let lock = NSLock()
+    private let queue = DispatchQueue(label: "app.meridian.fan.commands", qos: .utility)
+    private var pending: FanCommand?
+    private var sending = false
+    func submit(_ command: FanCommand) {
+        lock.lock(); pending = command
+        guard !sending else { lock.unlock(); return }
+        sending = true; lock.unlock()
+        queue.async { [self] in
+            while true {
+                lock.lock()
+                guard let next = pending else { sending = false; lock.unlock(); return }
+                pending = nil; lock.unlock()
+                if let data = try? JSONEncoder().encode(next) { _ = try? HelperSocket.request(data, label: DaemonInstaller.daemonLabel) }
+            }
         }
     }
 }

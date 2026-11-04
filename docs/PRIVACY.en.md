@@ -8,10 +8,8 @@
 - Capture history, thumbnails, GIFs, and user-exported files remain on the local Mac.
 - System monitoring reads CPU, memory, network-interface counters, disk information, and process information. Measuring throughput does not require reading web pages or capturing network content.
 - The current Meridian host has no account, screenshot-upload, cloud-OCR, or telemetry-upload service.
-- The network details page requests the public egress IP from `api.ipify.org` only when the user opens that page. The service receives the requester's egress IP. The result is cached only in local memory and is not uploaded to a project server.
-- The administrator helper is used for local display overrides and fan-register writes.
-
-The monitoring library contains an optional public-IP location lookup implementation, but the embedded Meridian host does not use that location feature.
+- The egress public IP lookup is off by default and makes no network request. Only after the user turns it on (in “Telemetry → Sampling” or on the network details page) does Meridian query `ipinfo.io`, falling back to `freeipapi.com`; both services see the requester's egress IP, and the IP, region, and provider returned are cached only in local memory. Turning the switch off cancels any in-flight query and clears the result.
+- The administrator helpers handle local display overrides and fan-register writes. Both talk only over a Unix socket under `/var/run`; each helper verifies the caller's code signature before acting and no longer polls a user-writable request file.
 
 ## Default storage locations
 
@@ -21,8 +19,8 @@ The monitoring library contains an optional public-IP location lookup implementa
 | Quick-save directory | Defaults to `~/Pictures/ScreenshotLab/`; configurable on the Capture page |
 | Main app preferences | UserDefaults domain `app.meridian.control`, retained for compatibility with older builds |
 | Module preferences | `app.meridian.control.capture`, `.pointer`, `.display`, `.thermal` |
-| Fan-control state | `~/Library/Application Support/FanControlLab/desired.json` |
-| Display-override requests and results | `~/Library/Application Support/DisplayLab/` |
+| Display HiDPI overrides and ownership receipts | `/Library/Displays/Contents/Resources/Overrides/DisplayVendorID-*/` (written by the helper; only files with a Meridian receipt are replaced) |
+| Helper configuration | `/Library/PrivilegedHelperTools/app.meridian.<display\|thermal>.*` and the matching plists under `/Library/LaunchDaemons/` |
 
 Development builds can override some data directories with environment variables. Existing local builds may also retain custom paths. Use the app settings and actual files as the source of truth.
 

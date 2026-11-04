@@ -2,8 +2,8 @@ import Foundation
 
 /// 供宿主进程内直接使用的类型化接口。
 ///
-/// 读取走用户态 SMC；写入只经 root 守护进程的 desired.json 文件协议（见 ControlService）。
-/// 宿主崩溃时控制文件约 10 秒后过期，守护进程把风扇交还系统自控。
+/// 读取走用户态 SMC；写入只经 root 守护进程的 socket 协议（见 `ControlService`）。
+/// 每条命令带 5 秒租约，宿主崩溃或停止发送后守护进程把风扇交还系统自控。
 public enum ThermalFanMode: Equatable, Sendable {
     case automatic
     case constant(rpm: Int)
@@ -166,11 +166,13 @@ public final class ThermalEngine {
     public var daemonNeedsUpdate: Bool { DaemonInstaller().needsUpdate }
 
     /// 弹出系统管理员授权框安装/更新守护进程；需随包携带守护进程与 plist 模板。
-    public func installDaemon() throws { try DaemonInstaller().install() }
+    public func installDaemon() async throws {
+        try await Task.detached { try DaemonInstaller().install() }.value
+    }
 
-    public func uninstallDaemon() throws {
+    public func uninstallDaemon() async throws {
         returnAllToAutomaticNow()
-        try DaemonInstaller().uninstall()
+        try await Task.detached { try DaemonInstaller().uninstall() }.value
     }
 
     public func mode(for fanIndex: Int) -> ThermalFanMode {

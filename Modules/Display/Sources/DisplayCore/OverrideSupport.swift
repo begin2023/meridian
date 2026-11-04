@@ -88,6 +88,16 @@ public enum OverrideSupport {
         return Double(nativeWidth) / Double(widthMillimetres)
     }
 
+    /// 覆盖文件当前的身份（修改时间+大小），用于让界面缓存感知外部改动；
+    /// 文件不存在时返回 nil。
+    public static func overrideFileStamp(vendorID: UInt32, productID: UInt32) -> String? {
+        let path = overridePath(vendorID: vendorID, productID: productID)
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let modified = attributes[.modificationDate] as? Date,
+              let size = attributes[.size] as? Int else { return nil }
+        return "\(modified.timeIntervalSince1970)-\(size)"
+    }
+
     /// Sanity checks applied to client-supplied override payloads before the
     /// helper writes anything.
     public static func validateScaleResolutions(_ blobs: [Data]) -> Bool {

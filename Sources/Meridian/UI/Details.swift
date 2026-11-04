@@ -210,22 +210,33 @@ struct NetworkDetail: View {
                 HStack {
                     Text("出口公网 IP").font(.system(size: 10)).foregroundStyle(.secondary)
                     Spacer()
-                    if model.publicIPLoading {
+                    if !model.publicIPLookupEnabled {
+                        EmptyView()
+                    } else if model.publicIPLoading {
                         ProgressView().controlSize(.mini)
                     } else {
                         Button("刷新") { model.requestPublicIP(force: true) }
                             .buttonStyle(.borderless).font(.system(size: 10))
                     }
                 }
-                Text(model.publicIPLoading ? "查询中…" : (model.publicIP.isEmpty ? "未获取" : model.publicIP))
-                    .font(.system(size: 17, weight: .semibold, design: .rounded)).monospacedDigit()
-                if !model.publicIPLocation.isEmpty {
-                    Label(model.publicIPLocation, systemImage: "mappin.and.ellipse")
+                if model.publicIPLookupEnabled {
+                    Text(model.publicIPLoading ? "查询中…" : (model.publicIP.isEmpty ? "未获取" : model.publicIP))
+                        .font(.system(size: 17, weight: .semibold, design: .rounded)).monospacedDigit()
+                    if !model.publicIPLocation.isEmpty {
+                        Label(model.publicIPLocation, systemImage: "mappin.and.ellipse")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                    if !model.publicIPProvider.isEmpty {
+                        Label(model.publicIPProvider, systemImage: "network")
+                            .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                } else {
+                    // 查询会把出口 IP 交给第三方，先问再连。
+                    Text("默认不联网查询：会把本机出口 IP 交给 ipinfo.io 与 freeipapi.com。")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                if !model.publicIPProvider.isEmpty {
-                    Label(model.publicIPProvider, systemImage: "network")
-                        .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("查询公网 IP…") { model.setPublicIPLookupEnabled(true) }
+                        .controlSize(.small)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

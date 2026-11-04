@@ -1,25 +1,8 @@
 import DisplayCore
 import Foundation
-
-// DisplayLabHelper: root LaunchDaemon that polls a command file and performs
-// the whitelisted display-override writes. Same architecture as
-// FanControlLabDaemon: on this machine, ad-hoc signed apps cannot open XPC
-// connections to system daemons (NSXPCConnection fails with 4097), so the
-// control channel is a file protocol:
-//
-//   app (user) writes  <home>/Library/Application Support/DisplayLab/helper-command.json
-//   daemon (root) polls, executes the override write/remove/list, then writes
-//   helper-result.json next to it.
-
-let commandPath = CommandLine.arguments.count > 1
-    ? CommandLine.arguments[1]
-    : URL(fileURLWithPath: NSHomeDirectory())
-        .appendingPathComponent("Library/Application Support/DisplayLab/helper-command.json").path
-let commandURL = URL(fileURLWithPath: commandPath)
-let resultURL = commandURL.deletingLastPathComponent().appendingPathComponent("helper-result.json")
-
-NSLog("DisplayLabHelper: starting (pid \(getpid())) commandFile=\(commandPath)")
-var lastFileMtime = Date.distantPast
+import Darwin
+import PrivilegedSupport
+import os
 
 func perform(_ command: HelperCommand) -> HelperResult {
     switch command.action {
@@ -31,11 +14,15 @@ func perform(_ command: HelperCommand) -> HelperResult {
             return HelperResult(id: command.id, ok: false, message: "缺少 scale-resolutions 数据。")
         }
         let blobs = base64Blobs.compactMap { Data(base64Encoded: $0) }
-        guard blobs.count == base64Blobs.count,
+        guard base64Blobs.count <= 64, blobs.count == base64Blobs.count,
               OverrideSupport.validateScaleResolutions(blobs) else {
             return HelperResult(id: command.id, ok: false, message: "scale-resolutions 数据非法。")
         }
 
+        guard (command.productName?.utf8.count ?? 0) <= 256,
+              let ppmm = command.targetDefaultPPMM, ppmm.isFinite, (0.1...20).contains(ppmm) else {
+            return HelperResult(id: command.id, ok: false, message: "显示器参数非法。")
+        }
         let plist: [String: Any] = [
             "DisplayProductName": command.productName?.isEmpty == false ? command.productName! : "DisplayLab Display",
             "DisplayResolutionEnabled": [
@@ -47,7 +34,9 @@ func perform(_ command: HelperCommand) -> HelperResult {
         ]
         do {
             let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-            try writeAtomically(data, path: OverrideSupport.overridePath(vendorID: vendorID, productID: productID))
+            let path = OverrideSupport.overridePath(vendorID: vendorID, productID: productID)
+            let store = try OwnedFileStore(path: (path as NSString).deletingLastPathComponent)
+            try store.write(data, name: (path as NSString).lastPathComponent)
             return HelperResult(id: command.id, ok: true, message: "已写入 \(OverrideSupport.overridePath(vendorID: vendorID, productID: productID))")
         } catch {
             return HelperResult(id: command.id, ok: false, message: error.localizedDescription)
@@ -58,75 +47,44 @@ func perform(_ command: HelperCommand) -> HelperResult {
             return HelperResult(id: command.id, ok: false, message: "非法的显示器标识。")
         }
         let path = OverrideSupport.overridePath(vendorID: vendorID, productID: productID)
-        guard FileManager.default.fileExists(atPath: path) else {
+        let directory = (path as NSString).deletingLastPathComponent
+        // 目录不存在就没什么可删；不要为了“删除”先创建目录。lstat 不跟随 symlink，
+        // 真正的写删由 OwnedFileStore 的 openat(O_NOFOLLOW) 把关。
+        var info = stat()
+        guard lstat(directory, &info) == 0 else {
             return HelperResult(id: command.id, ok: true, message: "本来就没有覆盖。")
         }
+        guard info.st_mode & S_IFMT == S_IFDIR else {
+            return HelperResult(id: command.id, ok: false, message: "覆盖目录不是普通目录，已取消。")
+        }
         do {
-            try FileManager.default.removeItem(atPath: path)
+            let store = try OwnedFileStore(path: directory)
+            try store.remove(name: (path as NSString).lastPathComponent)
             return HelperResult(id: command.id, ok: true, message: "已移除。")
         } catch {
             return HelperResult(id: command.id, ok: false, message: error.localizedDescription)
         }
 
-    case "list":
-        let fileManager = FileManager.default
-        guard let vendorDirs = try? fileManager.contentsOfDirectory(atPath: OverrideSupport.overridesRoot) else {
-            return HelperResult(id: command.id, ok: true, message: "", overrides: [])
-        }
-        var result: [String] = []
-        for vendorDir in vendorDirs where vendorDir.hasPrefix("DisplayVendorID-") {
-            let vendorID = String(vendorDir.dropFirst("DisplayVendorID-".count))
-            let vendorPath = "\(OverrideSupport.overridesRoot)/\(vendorDir)"
-            guard let productFiles = try? fileManager.contentsOfDirectory(atPath: vendorPath) else {
-                continue
-            }
-            for productFile in productFiles where productFile.hasPrefix("DisplayProductID-") {
-                result.append("\(vendorID):\(String(productFile.dropFirst("DisplayProductID-".count)))")
-            }
-        }
-        return HelperResult(id: command.id, ok: true, message: "", overrides: result)
-
     default:
-        return HelperResult(id: command.id, ok: false, message: "未知命令 \(command.action)。")
+        return HelperResult(id: command.id, ok: false, message: "未知命令。")
     }
 }
 
-func writeAtomically(_ data: Data, path: String) throws {
-    let fileManager = FileManager.default
-    let directory = (path as NSString).deletingLastPathComponent
-    try fileManager.createDirectory(atPath: directory, withIntermediateDirectories: true, attributes: [
-        .posixPermissions: 0o755,
-    ])
-    let temporaryPath = path + ".tmp-\(getpid())"
-    fileManager.createFile(atPath: temporaryPath, contents: data, attributes: [
-        .posixPermissions: 0o644,
-    ])
-    if fileManager.fileExists(atPath: path) {
-        try fileManager.removeItem(atPath: path)
+let label = "app.meridian.display.helper"
+let logger = Logger(subsystem: label, category: "override")
+do {
+    let config = try HelperConfiguration.load(label: label)
+    guard config.applicationExists else { exit(0) }
+    let server = try HelperSocket.Server(label: label, requirement: config.requirement, allowedUID: config.uid, allowedGID: config.gid)
+    var lastAppCheck: TimeInterval = 0
+    while true {
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastAppCheck > 5 { lastAppCheck = now; if !config.applicationExists { break } }
+        guard let request = server.acceptRequest(timeoutMilliseconds: 500) else { continue }
+        if let command = try? JSONDecoder().decode(HelperCommand.self, from: request.data), UUID(uuidString: command.id) != nil {
+            let result = perform(command)
+            if let data = try? JSONEncoder().encode(result) { try? HelperSocket.send(data, to: request.fd) }
+        }
+        close(request.fd)
     }
-    try fileManager.moveItem(atPath: temporaryPath, toPath: path)
-}
-
-func tick() {
-    guard let attributes = try? FileManager.default.attributesOfItem(atPath: commandURL.path),
-          let mtime = attributes[.modificationDate] as? Date,
-          mtime > lastFileMtime else {
-        return
-    }
-    guard let data = try? Data(contentsOf: commandURL),
-          let command = try? JSONDecoder().decode(HelperCommand.self, from: data) else {
-        return
-    }
-    lastFileMtime = mtime
-    let result = perform(command)
-    if let encoded = try? JSONEncoder().encode(result) {
-        try? writeAtomically(encoded, path: resultURL.path)
-    }
-    NSLog("DisplayLabHelper: action=\(command.action) ok=\(result.ok) message=\(result.message)")
-}
-
-// Main loop: launchd keeps the daemon alive (KeepAlive); poll every second.
-while true {
-    tick()
-    Thread.sleep(forTimeInterval: 1.0)
-}
+} catch { logger.error("Display helper failed: \(error.localizedDescription, privacy: .public)"); exit(1) }

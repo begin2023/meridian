@@ -61,7 +61,7 @@ let binarySurface = [
     nmOutput ?? "",
     stringsOutput ?? "",
 ].joined(separator: "\n")
-// 控制链路（ControlService → desired.json → root 守护进程）由宿主应用使用；
+// 控制链路（ControlService → 鉴权 socket → root 守护进程）由宿主应用使用；
 // Kit 本身仍不得包含进程内 SMC 写入或写入实验代码，硬件写入只发生在守护进程里。
 let forbiddenMarkers = [
     "RmFuV3JpdGVFeHBlcmltZW50",

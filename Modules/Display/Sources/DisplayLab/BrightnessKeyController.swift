@@ -32,6 +32,12 @@ final class BrightnessKeyController {
 
         let callback: CGEventTapCallBack = { _, type, event, userInfo in
             let controller = Unmanaged<BrightnessKeyController>.fromOpaque(userInfo!).takeUnretainedValue()
+            // 系统在回调超时或用户输入中断时会禁用 tap；不重新启用的话
+            // 亮度键会一直失效到下次 start()。
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                controller.reenableTap()
+                return Unmanaged.passUnretained(event)
+            }
             if controller.handleSystemDefined(event) {
                 return nil // swallow the key
             }
@@ -67,6 +73,13 @@ final class BrightnessKeyController {
         }
         eventTap = nil
         tapEnabled = false
+    }
+
+    /// 回调线程调用：被系统禁用的 tap 只能重新启用，不能再创建。
+    private func reenableTap() {
+        guard let eventTap else { return }
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+        tapEnabled = true
     }
 
     /// Returns true when the event is a brightness media key this controller

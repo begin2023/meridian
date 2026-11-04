@@ -27,8 +27,6 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/
 cp "$BIN/Meridian" "$APP/Contents/MacOS/Meridian"
 cp "$DISPLAY_BIN/DisplayLabHelper" "$APP/Contents/MacOS/DisplayLabHelper"
 cp "$FAN_BIN/FanControlLabDaemon" "$APP/Contents/Library/LaunchServices/app.meridian.thermal.daemon"
-cp "$MODULES/Display/Resources/helper-launchd.plist" "$APP/Contents/Resources/"
-cp "$MODULES/Thermal/Resources/daemon-launchd.plist" "$APP/Contents/Resources/"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
 ICONSET="$ROOT/.build/AppIcon.iconset"
@@ -40,9 +38,9 @@ fi
 cp "$ROOT/.build/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
 # Developer ID distribution requires hardened runtime and a secure timestamp.
-SIGN_ARGS=(--force --sign "$IDENTITY")
+SIGN_ARGS=(--force --sign "$IDENTITY" --options runtime)
 if [[ "$IDENTITY" == "Developer ID Application:"* ]]; then
-    SIGN_ARGS+=(--options runtime --timestamp)
+    SIGN_ARGS+=(--timestamp)
 fi
 codesign "${SIGN_ARGS[@]}" --identifier app.meridian.display.helper "$APP/Contents/MacOS/DisplayLabHelper"
 codesign "${SIGN_ARGS[@]}" --identifier app.meridian.thermal.daemon \

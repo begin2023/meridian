@@ -8,10 +8,8 @@
 - 截图历史、缩略图、GIF 与用户导出文件保存在本机。
 - 系统监控读取 CPU、内存、网络接口计数、磁盘信息和进程信息；统计网络吞吐不需要读取网页或抓取网络内容。
 - 当前 Meridian 宿主未接入账户、截图上传、云端识字或遥测上传服务。
-- 网络详情中的“出口公网 IP”由用户打开网络详情时按需请求 `api.ipify.org`；该服务会收到请求方出口 IP。查询结果只缓存在本机内存中，不会上传到项目服务器。
-- 管理员助手用于本机显示覆盖和风扇寄存器写入。
-
-监控库内还保留可选的公网 IP 归属地查询实现；嵌入的 Meridian 宿主不使用该归属地功能。
+- “出口公网 IP”默认关闭、不会联网。只有用户在“遥测 → 采样”或网络详情里主动打开后，才向 `ipinfo.io`（失败时回落到 `freeipapi.com`）查询；这两个服务会收到请求方出口 IP，返回的 IP、地区和运营商只缓存在本机内存中。关闭开关会立即取消查询并清空结果。
+- 管理员助手用于本机显示覆盖和风扇寄存器写入；两者都只经本机 `/var/run` 下的 Unix socket 通信，助手校验调用方签名后执行，不再轮询用户可写的请求文件。
 
 ## 默认存储位置
 
@@ -21,8 +19,8 @@
 | 快速保存目录 | 默认 `~/Pictures/ScreenshotLab/`，可在截图页更改 |
 | 主应用偏好 | UserDefaults 域 `app.meridian.control`（为兼容旧版本继续保留） |
 | 模块偏好 | `app.meridian.control.capture`、`.pointer`、`.display`、`.thermal` |
-| 风扇控制状态文件 | `~/Library/Application Support/FanControlLab/desired.json` |
-| 显示覆盖助手的请求与结果 | `~/Library/Application Support/DisplayLab/` |
+| 显示 HiDPI 覆盖与归属回执 | `/Library/Displays/Contents/Resources/Overrides/DisplayVendorID-*/`（由助手写入，只覆盖带 Meridian 回执的文件） |
+| 管理员助手配置 | `/Library/PrivilegedHelperTools/app.meridian.<display\|thermal>.*` 与 `/Library/LaunchDaemons/` 下同名 plist |
 
 开发时可以通过环境变量覆盖部分数据目录；已有本地版本也可能保留自定义路径。以应用设置与实际文件为准。
 

@@ -417,7 +417,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         runOverrideFlow { [weak self] in
             guard let self else { return nil }
             if !self.overrideService.isInstalled {
-                throw OverrideService.OverrideError.daemonNotInstalled
+                // 删除同样要 root 权限；没有助手时先装一个再删，避免把用户卡在“装过但删不掉”。
+                try self.overrideService.install()
             }
             return try await self.overrideService.removeOverride(for: display)
         }

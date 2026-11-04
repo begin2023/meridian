@@ -115,6 +115,7 @@ public enum DisplayBridgeError: LocalizedError {
     case nativeModeUnknown
     case noHiDPIVariant
     case unsupportedMode(DisplayModeInfo)
+    case displayMirrored
 
     public var errorDescription: String? {
         switch self {
@@ -123,8 +124,18 @@ public enum DisplayBridgeError: LocalizedError {
         case .noHiDPIVariant: return "这个分辨率没有对应的 HiDPI / 普通模式。"
         case .unsupportedMode(let mode):
             return "显示器没有 \(Int(mode.refreshRate.rounded()))Hz 下与 \(mode.pixelWidth)×\(mode.pixelHeight) 同比例的刷新时序，切过去会把画面压进别的分辨率。已阻止。"
+        case .displayMirrored:
+            return "这块屏幕正在镜像显示，切换模式会同时影响被镜像的屏幕。请先关闭镜像再切换。"
         }
     }
+}
+
+/// 每次模式切换一个令牌；新的切换会让旧请求中止仍在等待的 HDR 恢复。
+private final class ModeToken: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    func cancel() { lock.lock(); cancelled = true; lock.unlock() }
+    var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
 }
 
 @MainActor
@@ -142,7 +153,11 @@ public final class DisplayEngine {
     private let keyController = BrightnessKeyController()
     private var started = false
     private var screenObserver: NSObjectProtocol?
-    private var overrideStates: [String: ScreenDisplay.HiDPIOverrideState] = [:]
+    private var overrideStates: [String: (state: ScreenDisplay.HiDPIOverrideState, stamp: String?)] = [:]
+    /// 每块屏最近一次模式切换的令牌，用于取消上一请求的 HDR 恢复等待。
+    private var modeTokens: [CGDirectDisplayID: ModeToken] = [:]
+    /// 同一块屏的模式切换串行执行：两次配置事务重叠会让系统丢失其中一次。
+    private var modeQueues: [CGDirectDisplayID: DispatchQueue] = [:]
     /// 进入 HDR 时由本进程关掉的夜览/原彩，离开 HDR 时恢复。
     private var suppressedNightShift = false
     private var suppressedTrueTone = false
@@ -161,7 +176,7 @@ public final class DisplayEngine {
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.manager.refresh() }
+            MainActor.assumeIsolated { self?.manager.scheduleRefresh() }
         }
         manager.refresh()
         keyController.displayManager = manager
@@ -277,31 +292,45 @@ public final class DisplayEngine {
             completion(DisplayBridgeError.displayNotFound)
             return
         }
+        guard CGDisplayIsInMirrorSet(id) == 0 else {
+            completion(DisplayBridgeError.displayMirrored)
+            return
+        }
         guard ModeValidation.isRenderable(mode, in: display.info.modes) else {
             completion(DisplayBridgeError.unsupportedMode(mode))
             return
         }
         let wasHDR = HDRService.isEnabled(id) == true
-        DispatchQueue.global(qos: .userInitiated).async {
+        let token = ModeToken()
+        modeTokens[id]?.cancel()
+        modeTokens[id] = token
+        // 串行队列：请求排队而不是互相覆盖配置事务；切屏时队列照常释放。
+        let queue = modeQueues[id] ?? DispatchQueue(label: "app.meridian.display.mode.\(id)", qos: .userInitiated)
+        modeQueues[id] = queue
+        queue.async {
             let result: Error?
             do { try ModeService.apply(mode: mode, to: id); result = nil } catch { result = error }
-            if result == nil && wasHDR {
-                Self.restoreHDRIfDropped(id)
-            }
+            if result == nil && wasHDR && !token.isCancelled { Self.restoreHDRIfDropped(id, token: token) }
             DispatchQueue.main.async { [weak self] in
-                self?.manager.refresh()
+                guard let self else { completion(result); return }
+                if self.modeTokens[id] === token { self.modeTokens.removeValue(forKey: id) }
+                if self.modeQueues[id] === queue, self.modeTokens[id] == nil { self.modeQueues.removeValue(forKey: id) }
+                self.manager.refresh()
                 completion(result)
             }
         }
     }
 
-    nonisolated private static func restoreHDRIfDropped(_ id: CGDirectDisplayID) {
+    nonisolated private static func restoreHDRIfDropped(_ id: CGDirectDisplayID, token: ModeToken) {
         // 模式切换期间 HDR 状态会短暂读成关闭；稳定后仍是关闭才算真的掉了。
-        usleep(1_500_000)
-        for _ in 0..<6 {
+        // 每次等待都检查令牌，用户已经做了下一次切换时不再干预。
+        let deadline = Date().addingTimeInterval(3)
+        Thread.sleep(forTimeInterval: 1.5)
+        while Date() < deadline, !token.isCancelled {
             if HDRService.isEnabled(id) == true { return }
-            usleep(250_000)
+            Thread.sleep(forTimeInterval: 0.25)
         }
+        guard !token.isCancelled, HDRService.isEnabled(id) != true else { return }
         NSLog("Meridian display: HDR dropped after mode change on %u, re-enabling", id)
         HDRService.setEnabled(true, for: id)
     }
@@ -369,17 +398,24 @@ public final class DisplayEngine {
     // MARK: HiDPI 档位（root 助手写系统覆盖文件）
 
     public var overrideHelperInstalled: Bool { overrideService.isInstalled }
+    public var overrideHelperNeedsUpdate: Bool { overrideService.needsUpdate }
+    public func installOverrideHelper() async throws {
+        try await Task.detached { try OverrideService().install() }.value
+    }
+    public func uninstallOverrideHelper() async throws {
+        try await Task.detached { try OverrideService().uninstall() }.value
+    }
 
     public func installHiDPIOverride(for id: CGDirectDisplayID) async throws -> String {
         guard let display = manager.display(with: id) else { throw DisplayBridgeError.displayNotFound }
-        if !overrideService.isInstalled { try overrideService.install() }
+        if !overrideService.isInstalled || overrideService.needsUpdate { try await installOverrideHelper() }
         defer { overrideStates.removeAll(); rebuild(readBrightness: false) }
         return try await overrideService.installOverride(for: display)
     }
 
     public func removeHiDPIOverride(for id: CGDirectDisplayID) async throws -> String {
         guard let display = manager.display(with: id) else { throw DisplayBridgeError.displayNotFound }
-        if !overrideService.isInstalled { try overrideService.install() }
+        if !overrideService.isInstalled || overrideService.needsUpdate { try await installOverrideHelper() }
         defer { overrideStates.removeAll(); rebuild(readBrightness: false) }
         return try await overrideService.removeOverride(for: display)
     }
@@ -505,7 +541,10 @@ public final class DisplayEngine {
 
     private func overrideState(for display: DisplayInfo, native: (Int, Int)) -> ScreenDisplay.HiDPIOverrideState {
         let key = "\(display.vendorID):\(display.productID)"
-        if let cached = overrideStates[key] { return cached }
+        // The file can be rewritten by another app (or by hand); cache the
+        // state together with the file's identity so a change is picked up.
+        let stamp = OverrideSupport.overrideFileStamp(vendorID: display.vendorID, productID: display.productID)
+        if let cached = overrideStates[key], cached.stamp == stamp { return cached.state }
         let state: ScreenDisplay.HiDPIOverrideState
         if let installed = OverrideSupport.installedScaleResolutions(vendorID: display.vendorID, productID: display.productID) {
             let wanted = Set(OverrideSupport.defaultScaleResolutions(nativeWidth: native.0, nativeHeight: native.1))
@@ -513,7 +552,7 @@ public final class DisplayEngine {
         } else {
             state = .none
         }
-        overrideStates[key] = state
+        overrideStates[key] = (state, stamp)
         return state
     }
 

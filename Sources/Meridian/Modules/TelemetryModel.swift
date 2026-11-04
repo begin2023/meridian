@@ -21,6 +21,10 @@ final class TelemetryModel: ObservableObject {
     @Published private(set) var publicIPLocation = ""
     @Published private(set) var publicIPProvider = ""
     @Published private(set) var publicIPLoading = false
+    /// 出口 IP 查询会向第三方服务暴露本机 IP，默认关闭，只有用户允许后才联网。
+    @Published private(set) var publicIPLookupEnabled = false
+    /// 由协调者接回偏好存储；界面上的“允许”按钮通过它写入用户选择。
+    var onPublicIPLookupChange: ((Bool) -> Void)?
     @Published private(set) var cpuHistory: [Double] = []
     @Published private(set) var memoryHistory: [Double] = []
     @Published private(set) var downHistory: [Double] = []
@@ -96,6 +100,7 @@ final class TelemetryModel: ObservableObject {
     }
 
     func requestPublicIP(force: Bool = false) {
+        guard publicIPLookupEnabled else { return }
         guard publicIPTask == nil else { return }
         if !force, let lastPublicIPLookup {
             let cooldown: TimeInterval = publicIP.isEmpty ? 60 : 3600
@@ -112,6 +117,29 @@ final class TelemetryModel: ObservableObject {
             self.publicIP = info.address
             self.publicIPLocation = info.location
             self.publicIPProvider = info.provider
+        }
+    }
+
+    /// 用户切换“查询公网 IP”时调用：先写入偏好，再由偏好回流到 apply。
+    func setPublicIPLookupEnabled(_ enabled: Bool) {
+        onPublicIPLookupChange?(enabled)
+        applyPublicIPLookupEnabled(enabled)
+    }
+
+    /// 关闭时清掉已缓存的结果，不再保留第三方返回的数据。
+    func applyPublicIPLookupEnabled(_ enabled: Bool) {
+        guard publicIPLookupEnabled != enabled else { return }
+        publicIPLookupEnabled = enabled
+        if enabled {
+            requestPublicIP()
+        } else {
+            publicIPTask?.cancel()
+            publicIPTask = nil
+            publicIPLoading = false
+            publicIP = ""
+            publicIPLocation = ""
+            publicIPProvider = ""
+            lastPublicIPLookup = nil
         }
     }
 

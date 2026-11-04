@@ -3,10 +3,13 @@ import PackageDescription
 let package = Package(name: "Thermal", platforms: [.macOS(.v14)],
     products: [.library(name: "FanControlLabKit", targets: ["FanControlLabKit"]),
                .executable(name: "FanControlLabDaemon", targets: ["FanControlLabDaemon"])],
+    dependencies: [.package(path: "../PrivilegedSupport")],
     targets: [
-        .target(name: "FanControlLabKit", path: "Sources/FanControlLab", exclude: [
-            "main.swift", "Core/FanWriteExperiment.swift", "SMC/HelperProtocol.swift"], linkerSettings: [
+        .target(name: "FanControlLabKit", dependencies: [.product(name: "PrivilegedSupport", package: "PrivilegedSupport"), "FanControlProtocol"], path: "Sources/FanControlLab", exclude: [
+            "main.swift"], linkerSettings: [
             .linkedFramework("IOKit"), .linkedFramework("ServiceManagement")]),
-        .executableTarget(name: "FanControlLabDaemon", linkerSettings: [.linkedFramework("IOKit")]),
+        .target(name: "FanControlProtocol"),
+        .executableTarget(name: "FanControlProtocolSmoke", dependencies: ["FanControlProtocol"]),
+        .executableTarget(name: "FanControlLabDaemon", dependencies: [.product(name: "PrivilegedSupport", package: "PrivilegedSupport"), "FanControlProtocol"], linkerSettings: [.linkedFramework("IOKit")]),
         .executableTarget(name: "FanControlLabKitSmoke", dependencies: ["FanControlLabKit"])
     ], swiftLanguageModes: [.v5])

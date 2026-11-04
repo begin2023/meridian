@@ -84,6 +84,14 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
             .dropFirst()
             .sink { [weak self] value in self?.telemetry.setInterval(value) }
             .store(in: &cancellables)
+        telemetry.applyPublicIPLookupEnabled(preferences.publicIPLookupEnabled)
+        telemetry.onPublicIPLookupChange = { [weak self] enabled in
+            self?.preferences.publicIPLookupEnabled = enabled
+        }
+        preferences.$publicIPLookupEnabled
+            .dropFirst()
+            .sink { [weak self] enabled in self?.telemetry.applyPublicIPLookupEnabled(enabled) }
+            .store(in: &cancellables)
 
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: nil, queue: .main
@@ -122,7 +130,44 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     /// · meridian://resolution/<native|2560x1440> · meridian://refresh/<hz> · meridian://hdr/<on|off|toggle> · meridian://boost/<100–400>
     /// · meridian://capture|ocr|pin|gif — 供启动器、快捷指令和脚本调用。
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls where url.scheme == "meridian" {
+        let links = urls.filter { $0.scheme == "meridian" }
+        let mutating = links.filter { Self.mutatingURLHosts.contains($0.host ?? "") }
+        guard !mutating.isEmpty, preferences.confirmURLActions else {
+            handle(links: links)
+            return
+        }
+        confirmURLs(mutating) { [weak self] accepted in
+            guard accepted, let self else { return }
+            self.handle(links: links)
+        }
+    }
+
+    /// 会改动硬件或抓取屏幕的链接；只切页面、关窗口的链接不打扰。
+    private static let mutatingURLHosts: Set<String> = [
+        "fan", "resolution", "refresh", "boost", "hdr", "brightness",
+        "capture", "ocr", "pin", "gif",
+    ]
+
+    /// 任何能打开 meridian:// 的程序都能改硬盘、亮度和风扇，先让用户看到具体要做什么。
+    private func confirmURLs(_ urls: [URL], completion: @escaping (Bool) -> Void) {
+        let source = NSWorkspace.shared.frontmostApplication?.localizedName ?? "其他程序"
+        let list = urls.prefix(4).map(\.absoluteString).joined(separator: "\n")
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "允许「\(source)」用链接操作 Meridian？"
+        alert.informativeText = urls.count > 4 ? "\(list)\n…共 \(urls.count) 个" : list
+        alert.addButton(withTitle: "执行")
+        alert.addButton(withTitle: "取消")
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = "以后不再确认（可在“通用”里重新开启）"
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        if alert.suppressionButton?.state == .on { preferences.confirmURLActions = false }
+        completion(response == .alertFirstButtonReturn)
+    }
+
+    private func handle(links urls: [URL]) {
+        for url in urls {
             let host = url.host ?? ""
             let arg = url.pathComponents.dropFirst().first ?? ""
             switch host {

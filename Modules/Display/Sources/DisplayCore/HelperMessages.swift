@@ -1,11 +1,11 @@
 import Foundation
 
-/// Wire format between the app and the root helper daemon (file protocol).
-/// The app writes a HelperCommand, the daemon executes it and writes a
-/// HelperResult with the matching id.
+/// Wire format between the app and the root helper daemon (authenticated socket).
+/// The app sends a `HelperCommand` as one framed message; the helper replies with
+/// a `HelperResult` carrying the same id.
 public struct HelperCommand: Codable {
     public var id: String
-    public var action: String // "write" | "remove" | "list"
+    public var action: String // "write" | "remove"
     public var vendorID: UInt32?
     public var productID: UInt32?
     public var productName: String?
@@ -35,12 +35,10 @@ public struct HelperResult: Codable {
     public var id: String
     public var ok: Bool
     public var message: String
-    public var overrides: [String]?
 
-    public init(id: String, ok: Bool, message: String, overrides: [String]? = nil) {
+    public init(id: String, ok: Bool, message: String) {
         self.id = id
         self.ok = ok
         self.message = message
-        self.overrides = overrides
     }
 }

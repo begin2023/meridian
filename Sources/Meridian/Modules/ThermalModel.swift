@@ -10,6 +10,7 @@ final class ThermalModel: ObservableObject {
     @Published private(set) var daemonInstalled = false
     @Published private(set) var daemonNeedsUpdate = false
     @Published var message: String?
+    @Published private(set) var helperBusy = false
 
     @Published var refreshInterval = 1.5
     @Published var maxFraction = 0.9
@@ -84,7 +85,7 @@ final class ThermalModel: ObservableObject {
     }
 
     func apply(_ preset: Preset) {
-        guard ensureDaemon() else { return }
+        guard preset == .automatic || ensureDaemon() else { return }
         switch preset {
         case .automatic: engine.applyPreset(.automatic)
         case .curve: engine.applyPreset(.sensorCurve)
@@ -126,23 +127,23 @@ final class ThermalModel: ObservableObject {
     }
 
     func installDaemon() {
-        do {
-            try engine.installDaemon()
-            message = "风扇控制服务已安装。"
-        } catch {
-            message = "安装风扇控制服务失败：\(error.localizedDescription)"
+        guard !helperBusy else { return }
+        helperBusy = true
+        Task {
+            defer { helperBusy = false; refreshDaemonState() }
+            do { try await engine.installDaemon(); message = "风扇控制服务已安装，请重新选择控制模式。" }
+            catch { message = "安装风扇控制服务失败：\(error.localizedDescription)" }
         }
-        refreshDaemonState()
     }
 
     func uninstallDaemon() {
-        do {
-            try engine.uninstallDaemon()
-            message = "风扇控制服务已移除，风扇由系统自动控制。"
-        } catch {
-            message = "移除失败：\(error.localizedDescription)"
+        guard !helperBusy else { return }
+        helperBusy = true
+        Task {
+            defer { helperBusy = false; refreshDaemonState() }
+            do { try await engine.uninstallDaemon(); message = "风扇控制服务已移除，风扇由系统自动控制。" }
+            catch { message = "移除失败：\(error.localizedDescription)" }
         }
-        refreshDaemonState()
     }
 
     // MARK: 设置

@@ -1,13 +1,9 @@
 import Foundation
 import IOKit
-
-// FanControlLabDaemon：root LaunchDaemon，轮询控制文件并执行 SMC 写入。
-//
-// 设计说明：本机 ad-hoc 签名下 XPC 连接 system daemon 不通
-// （NSXPCConnection/底层 XPC 均 4097），故控制链路改为文件协议：
-//   app（用户态）每拍计算期望转速 → 写 ~/Library/Application Support/FanControlLab/desired.json
-//   本 daemon（root）每秒读取 → 写 SMC F{n}Tg
-// desired.json 带 expiresAt，过期即停写，风扇回到系统自控。
+import Darwin
+import PrivilegedSupport
+import FanControlProtocol
+import os
 
 let structSize = 80
 let offKey = 0x00
@@ -18,6 +14,11 @@ let offData = 0x30
 
 final class RootSMC {
     var connection: io_connect_t = 0
+    deinit { close() }
+
+    func close() {
+        if connection != 0 { IOServiceClose(connection); connection = 0 }
+    }
 
     func open() -> Bool {
         var iterator: io_iterator_t = 0
@@ -88,14 +89,9 @@ final class RootSMC {
         return (0..<size).map { output.load(fromByteOffset: offData + $0, as: UInt8.self) }
     }
 
-    func readFloat(_ key: String) -> Double? {
-        guard let data = readBytes(key, size: 4) else { return nil }
-        var bits: UInt32 = 0
-        for (index, byte) in data.enumerated() {
-            bits |= UInt32(byte) << (8 * index)
-        }
-        let float = Float(bitPattern: bits)
-        return float.isFinite ? Double(float) : nil
+    func readRPM(_ key: String) -> Double? {
+        guard let info = keyInfo(key), let bytes = readBytes(key, size: info.size) else { return nil }
+        return FanRPMCodec.decode(bytes, type: info.type)
     }
 
     func keyInfo(_ key: String) -> (size: Int, type: String)? {
@@ -111,7 +107,8 @@ final class RootSMC {
 
     /// 原始字节写入（模式键 F{n}Md 等）。
     func writeRaw(_ key: String, byte: UInt8) -> Bool {
-        let size = keyInfo(key)?.size ?? 1
+        guard let info = keyInfo(key), info.size == 1, info.type.trimmingCharacters(in: .whitespaces) == "ui8" else { return false }
+        let size = info.size
         var data = [UInt8](repeating: 0, count: size)
         data[0] = byte
         guard readBytes(key, size: size) != nil else { return false }
@@ -122,123 +119,100 @@ final class RootSMC {
         return true
     }
 
-    /// 写入前读回校验尺寸（防止类型错写）。
-    func writeFloat(_ key: String, value: Double) -> Bool {
-        guard readBytes(key, size: 4) != nil else { return false }
-        var bits = Float(value).bitPattern.littleEndian
-        let data = withUnsafeBytes(of: &bits) { Array($0) }
-        guard let output = call(command: 6, key: key, dataSize: 4, value: data) else {
-            return false
-        }
+    /// 按 SMC 返回的真实类型写入，避免把 fpe2/ui16 风扇目标误当作 float。
+    func writeRPM(_ key: String, value: Double) -> Bool {
+        guard let info = keyInfo(key), let data = FanRPMCodec.encode(value, type: info.type, size: info.size),
+              readBytes(key, size: info.size) != nil,
+              let output = call(command: 6, key: key, dataSize: UInt32(info.size), value: data) else { return false }
         output.deallocate()
         return true
     }
 }
 
-struct ControlFile: Codable {
-    var expiresAt: Double
-    var targets: [String: Double?]
-    var modes: [String: Int]?
+let label = "app.meridian.thermal.daemon"
+let logger = Logger(subsystem: label, category: "control")
+let smc = RootSMC()
+var active: Set<Int> = []
+var targets: [Int: Double] = [:]
+var settings: [Int: FanCommand.Setting] = [:]
+var leaseDeadline: TimeInterval = 0
+var stopping = false
 
-    var isFresh: Bool {
-        Date().timeIntervalSince1970 < expiresAt + 5
+func restore(_ fans: Set<Int>) {
+    for index in fans {
+        if smc.writeRaw("F\(index)Md", byte: 0) { active.remove(index); targets.removeValue(forKey: index) }
     }
 }
 
-// 控制文件路径由安装脚本按用户家目录生成，作为 argv[1] 传入
-let controlPath = CommandLine.arguments.count > 1
-    ? CommandLine.arguments[1]
-    : URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support/FanControlLab/desired.json").path
-let controlFileURL = URL(fileURLWithPath: controlPath)
-NSLog("DAEMON: starting (pid \(getpid())) controlFile=\(controlPath)")
-let smc = RootSMC()
-var smcReady = false
-var lastFileMtime = Date.distantPast
-var lastHadControl = false
-var lastActiveFans: Set<Int> = []
-var lastLoadedControl: ControlFile?
-// 平滑加减速：每 tick（1 秒）目标转速最多变化 500 RPM，起步从实际转速出发
-var appliedTargets: [Int: Double] = [:]
-let maxRPMStepPerTick: Double = 500
+func bounds() -> [Int: ClosedRange<Double>] {
+    guard let count = smc.readBytes("FNum", size: 1)?.first, count <= 10 else { return [:] }
+    var result: [Int: ClosedRange<Double>] = [:]
+    for index in 0..<Int(count) {
+        guard let low = smc.readRPM("F\(index)Mn"), let high = smc.readRPM("F\(index)Mx"),
+              low > 0, high >= low, high <= 65_535 else { continue }
+        result[index] = low...high
+    }
+    return result
+}
 
 func tick() {
-    // SMC 断线重连
-    if !smcReady {
-        smcReady = smc.open()
-        if !smcReady {
-            return
-        }
-        NSLog("DAEMON: SMC connected")
+    guard ProcessInfo.processInfo.systemUptime < leaseDeadline else { restore(active); settings = [:]; return }
+    let limits = bounds()
+    let wanted = Set(settings.filter { $0.value.mode == 1 }.keys)
+    restore(active.subtracting(wanted))
+    for (index, setting) in settings {
+        guard setting.mode == 1, let rpm = setting.rpm, let range = limits[index] else { continue }
+        active.insert(index)
+        let current = targets[index] ?? smc.readRPM("F\(index)Ac") ?? rpm
+        let next = min(max(current + min(max(rpm - current, -500), 500), range.lowerBound), range.upperBound)
+        guard smc.writeRPM("F\(index)Tg", value: next), smc.writeRaw("F\(index)Md", byte: 1) else { restore([index]); continue }
+        targets[index] = next
     }
-
-    // 有新写入才重新加载；新鲜度检查每拍都做（app 死后文件不再变化也必须能触发归还）
-    let url = controlFileURL
-    if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-       let mtime = attributes[.modificationDate] as? Date,
-       mtime > lastFileMtime,
-       let data = try? Data(contentsOf: url),
-       let control = try? JSONDecoder().decode(ControlFile.self, from: data) {
-        lastFileMtime = mtime
-        lastLoadedControl = control
-    }
-    guard let control = lastLoadedControl else {
-        return
-    }
-    guard control.isFresh else {
-        // 控制文件过期：app 已退出/崩溃，把风扇交还系统自控
-        if lastHadControl {
-            for fanIndex in lastActiveFans {
-                _ = smc.writeRaw("F\(fanIndex)Md", byte: 0)
-            }
-            NSLog("DAEMON: control expired, returned fans \(lastActiveFans.sorted()) to system")
-            lastHadControl = false
-            lastActiveFans.removeAll()
-            appliedTargets.removeAll()
-        }
-        return
-    }
-    lastHadControl = true
-    lastActiveFans.formUnion(control.targets.keys.compactMap(Int.init))
-    lastActiveFans.formUnion((control.modes ?? [:]).keys.compactMap(Int.init))
-
-    // 模式键每拍读回实际值，不一致就重写。不能只信本进程的缓存：睡眠唤醒、固件
-    // 看门狗或另一个守护进程都可能把 F{n}Md 悄悄归零；此时只写 F{n}Tg 会被固件忽略，
-    // 风扇看似“已勾选温控却不受控”，直到手动切一次模式才恢复。读回可自愈这一点。
-    for (fanIndexString, value) in control.modes ?? [:] {
-        guard let fanIndex = Int(fanIndexString), fanIndex >= 0, fanIndex <= 9 else { continue }
-        let key = "F\(fanIndex)Md"
-        let desired = UInt8(clamping: value)
-        guard smc.readBytes(key, size: 1)?.first != desired else { continue }
-        let ok = smc.writeRaw(key, byte: desired)
-        NSLog("DAEMON: mode \(key)=\(value) -> \(ok ? "OK" : "FAILED")")
-    }
-
-    // 目标转速平滑逼近（每 tick 最多 500 RPM），起步从实际转速出发
-    for (fanIndexString, target) in control.targets {
-        guard let fanIndex = Int(fanIndexString), fanIndex >= 0, fanIndex <= 9 else { continue }
-        guard let rpm = target else { continue }
-        let clamped = min(max(rpm, 0), 65535)
-        let current = appliedTargets[fanIndex]
-            ?? smc.readFloat("F\(fanIndex)Ac")
-            ?? clamped
-        let delta = clamped - current
-        let step = min(max(delta, -maxRPMStepPerTick), maxRPMStepPerTick)
-        let next = ((current + step) / 10).rounded() * 10
-        let key = "F\(fanIndex)Tg"
-        let ok = smc.writeFloat(key, value: next)
-        if !ok {
-            NSLog("DAEMON: write \(key)=\(next) failed")
-        } else {
-            appliedTargets[fanIndex] = next
-            if abs(next - current) >= 40 {
-                NSLog("DAEMON: ramp \(key) \(Int(current)) -> \(Int(next)) (target \(Int(clamped)))")
-            }
-        }
-    }
+    restore(active.subtracting(Set(limits.keys)))
 }
 
-// 主循环：每秒检查一次控制文件
-while true {
-    tick()
-    Thread.sleep(forTimeInterval: 1.0)
-}
+do {
+    let config = try HelperConfiguration.load(label: label)
+    guard config.applicationExists else { exit(0) }
+    let server = try HelperSocket.Server(label: label, requirement: config.requirement, allowedUID: config.uid, allowedGID: config.gid)
+    signal(SIGTERM, SIG_IGN); signal(SIGINT, SIG_IGN)
+    let terminationQueue = DispatchQueue(label: label + ".signal")
+    let lock = NSLock()
+    let signals = [SIGTERM, SIGINT].map { number -> DispatchSourceSignal in
+        let source = DispatchSource.makeSignalSource(signal: number, queue: terminationQueue)
+        source.setEventHandler { lock.lock(); stopping = true; lock.unlock() }; source.resume(); return source
+    }
+    defer { signals.forEach { $0.cancel() }; restore(active) }
+    var lastTick: TimeInterval = 0
+    var lastAppCheck: TimeInterval = 0
+    var connected = false
+    while true {
+        lock.lock(); let stop = stopping; lock.unlock(); if stop { break }
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastAppCheck > 5 { lastAppCheck = now; if !config.applicationExists { break } }
+        if !connected {
+            connected = smc.open()
+        } else if smc.readBytes("FNum", size: 1) == nil {
+            // SMC 连接失效时释放旧连接，下一轮重新打开。
+            smc.close(); connected = false; leaseDeadline = 0; settings = [:]
+        }
+        if let request = server.acceptRequest() {
+            do {
+                guard connected else { throw HelperFailure.rejected("SMC 不可用。") }
+                let command = try JSONDecoder().decode(FanCommand.self, from: request.data)
+                let wallNow = Date().timeIntervalSince1970
+                let validated = try command.validated(now: wallNow, bounds: bounds())
+                settings = validated
+                leaseDeadline = ProcessInfo.processInfo.systemUptime + max(0, command.expiresAt - wallNow)
+                if command.expiresAt == 0 { restore(active) }
+                else { restore(active.subtracting(Set(validated.filter { $0.value.mode == 1 }.keys))) }
+                try HelperSocket.send(Data("OK".utf8), to: request.fd)
+            } catch {
+                leaseDeadline = 0; settings = [:]; restore(active)
+                try? HelperSocket.send(Data("REJECTED".utf8), to: request.fd)
+            }
+            close(request.fd)
+        }
+        if now - lastTick >= 1 { lastTick = now; tick() }
+    }
+} catch { logger.error("Fan helper failed: \(error.localizedDescription, privacy: .public)"); exit(1) }

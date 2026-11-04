@@ -2,10 +2,9 @@ import AppKit
 
 /// Owns the local SMC read session and AppKit surfaces.
 ///
-/// Fan writes are deliberately not wired into this delegate. The former
-/// `ControlService` path could create or refresh `desired.json`, which an
-/// already-installed root daemon would execute. The integrated build is
-/// monitoring-only until the safety and recovery gates are verified.
+/// Fan writes are deliberately not wired into this delegate. The integrated
+/// build is monitoring-only; the host app drives the root daemon over an
+/// authenticated socket with short leases.
 @MainActor
 final class AppDelegate: NSObject {
     private let embedded: Bool

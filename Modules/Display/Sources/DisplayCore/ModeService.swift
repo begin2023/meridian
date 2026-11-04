@@ -121,23 +121,36 @@ public enum ModeService {
         guard CGBeginDisplayConfiguration(&config) == .success, let config else {
             throw ModeServiceError.configurationFailed("无法开始显示器配置事务。")
         }
-        defer { CGCompleteDisplayConfiguration(config, .permanently) }
+        // A failed transaction must be ended without persisting it; committing
+        // permanently on error would store whatever partial change was queued.
+        func abort() { CGCompleteDisplayConfiguration(config, .forSession) }
+        func finish() throws {
+            let status = CGCompleteDisplayConfiguration(config, .permanently)
+            guard status == .success else {
+                throw ModeServiceError.configurationFailed("提交显示器配置失败（\(status.rawValue)）。")
+            }
+        }
 
         if let cgsIndex = mode.cgsIndex {
             let status = CGSConfigureDisplayMode(config, display, Int32(cgsIndex))
             guard status == .success else {
+                abort()
                 throw ModeServiceError.configurationFailed("CGSConfigureDisplayMode 失败（\(status.rawValue)）。")
             }
+            try finish()
             return
         }
 
         guard let cgMode = publicMode(matching: mode, for: display) else {
+            abort()
             throw ModeServiceError.modeMissing(mode)
         }
         let status = CGConfigureDisplayWithDisplayMode(config, display, cgMode, nil)
         guard status == .success else {
+            abort()
             throw ModeServiceError.configurationFailed("CGConfigureDisplayWithDisplayMode 失败（\(status.rawValue)）。")
         }
+        try finish()
     }
 }
 

@@ -20,13 +20,16 @@ struct ThermalPage: View {
             }
             ThermalDetail(model: model, showsSensorsLimit: nil)
 
-            Group2(title: "控制服务", footer: "手动/温控模式由一个 root 后台服务写入风扇控制寄存器。Meridian 退出、崩溃或服务失联约 10 秒后，风扇自动交还系统控制。") {
+            Group2(title: "控制服务", footer: "手动/温控模式由一个 root 后台服务写入风扇控制寄存器。Meridian 退出、崩溃或服务失联约 5 秒后，风扇自动交还系统控制。") {
                 Row(title: "风扇控制服务", detail: daemonDetail) {
                     HStack {
+                        if model.helperBusy { ProgressView().controlSize(.mini) }
                         StatusDot(on: model.daemonInstalled)
                         Button(model.daemonNeedsUpdate ? "更新…" : model.daemonInstalled ? "重新安装" : "安装…") { model.installDaemon() }
+                            .disabled(model.helperBusy)
                         if model.daemonInstalled {
                             Button("移除") { model.uninstallDaemon() }
+                                .disabled(model.helperBusy)
                         }
                     }
                 }
@@ -243,6 +246,12 @@ struct TelemetryPage: View {
             Group2(title: "采样") {
                 SliderRow(title: "后台采样间隔", value: $preferences.telemetryInterval, range: 1...10, step: 1,
                           format: { "\(Int($0)) 秒" })
+                Row(title: "查询出口公网 IP",
+                    detail: "开启后会把本机出口 IP 发送给 ipinfo.io 与 freeipapi.com；关闭时不会联网，已获取的结果会被清除。") {
+                    Toggle("", isOn: Binding(get: { model.publicIPLookupEnabled },
+                                            set: { model.setPublicIPLookupEnabled($0) }))
+                        .toggleStyle(.switch).labelsHidden()
+                }
             }
             MenuWidgetToggles(preferences: preferences, widgets: [.cpu, .memory, .network, .disk, .gpu])
         }
@@ -297,6 +306,16 @@ struct GeneralPage: View {
                         Toggle("", isOn: Binding(get: { preferences.isEnabled(feature) }, commit: { preferences.setEnabled(feature, $0) }))
                             .toggleStyle(.switch).labelsHidden()
                     }
+                }
+            }
+
+            Group2(title: "外部链接",
+                   footer: "meridian:// 链接可以由网页、脚本或其它应用打开。关闭确认后，任何能打开该链接的程序都能直接切换分辨率、HDR、风扇或截图。") {
+                Row(title: "外部链接操作前先确认",
+                    detail: "对会改动硬件或抓取屏幕的操作弹窗确认；只切换页面的链接不需要确认。") {
+                    Toggle("", isOn: Binding(get: { preferences.confirmURLActions },
+                                            commit: { preferences.confirmURLActions = $0 }))
+                        .toggleStyle(.switch).labelsHidden()
                 }
             }
 

@@ -177,3 +177,37 @@
   连续采样不倒退；`InterfaceVolumeTracker` 的回绕、接口消失、接口重建三组用例通过；
   `MonitoringLabKitSmoke` 通过；Release 版已重新构建、签名并安装到 `/Applications/Meridian.app`，
   真机网络面板显示 71.4 GB / 8.0 GB，与系统一致。
+
+## 2026-11-05 特权助手、显示模式与隐私待办
+
+本机（Mac mini M4 · macOS 27.2）完成，未做跨机型与干净环境验证。
+
+- **助手通信改为鉴权 socket**：`HelperSocket` 在 `/var/run/<label>.sock` 上监听，socket 归安装用户所有、权限 `0600`；
+  用 `getpeereid` + `LOCAL_PEERTOKEN` + `SecCodeCheckValidity` 校验调用方签名，要求 hardened runtime，
+  拒绝带 `get-task-allow` / `disable-library-validation` / `allow-dyld-environment-variables` 的调用方。
+  消息为 4 字节大端长度 + 正文，单条上限 64 KiB，收发都有超时；零长度、超长、慢速连接都会被拒。
+- **安装与卸载改为事务脚本**：预检目录与三个目标文件的属主/符号链接/权限/硬链接数，
+  `mktemp` 暂存 + SHA256 校验，备份后逐件 `mv`，任一步骤或 `launchctl bootstrap` 失败即回滚并重建服务；
+  旧 `app.meridian.thermal.helper` 的文件只在安装 thermal daemon 时按同样的属主检查后清理。
+- **输入校验**：风扇命令按真实 SMC 类型（`flt `/`fpe2`/`ui16`/`ui8`）编解码转速，租约上限 10 秒、
+  越界转速夹到设备范围、非有限值和非 0/1 模式直接拒绝；显示覆盖只接受 ≤64 条合法 blob、ppmm 0.1–20。
+- **第三方文件保护**：`OwnedFileStore` 用 `openat(O_NOFOLLOW)` 逐段进入目录，
+  覆盖只发生在带 Meridian SHA256 回执的文件上，新建走 `renameatx_np(RENAME_EXCL)`，
+  回执写失败会恢复旧内容；删除只删自己写过的文件。smoke 覆盖了这三条路径。
+- **SMC 掉线**：守护进程每轮用 `FNum` 探测连接，失败即关闭、清空租约与控制状态，下一轮重连。
+- **显示模式**：`ModeService.apply` 只在提交成功时才 `CGCompleteDisplayConfiguration(.permanently)`，
+  失败用 `.forSession` 结束事务并抛错；镜像屏直接拒绝切换；同一块屏的切换串行进队列，
+  新的请求会取消上一次仍在等待的 HDR 恢复（3 秒上限，逐轮检查令牌）。
+- **刷新与缓存**：`DisplayManager.refresh()` 按存活屏过滤 DDC 设备、亮度控制器和亮度缓存，
+  重配置回调与屏幕参数通知都走 `scheduleRefresh()` 合并成一次刷新。
+- **override 状态**：按文件修改时间与大小生成戳，外部改写覆盖文件后界面会重新判定，不再吃旧缓存。
+- **亮度键**：事件 tap 被系统因超时或用户中断禁用时重新启用，不再一直失效到下次启动。
+- **URL 确认**：`fan/resolution/refresh/boost/hdr/brightness/capture/ocr/pin/gif` 这些会改硬件或抓屏的链接
+  默认弹窗确认，可勾选「以后不再确认」，也能在“通用 → 外部链接”重新打开。
+- **公网 IP 隐私**：默认关闭且不联网；开启后才查询 `ipinfo.io`（失败回落 `freeipapi.com`），
+  关闭时取消进行中的请求并清空结果。网络详情页与“遥测 → 采样”都能控制。
+- **检查**：`swift build`（根包）通过；`FanControlProtocolSmoke`、`FanControlLabKitSmoke`、`DisplayCoreSmoke`、
+  `DisplayLabKitSmoke`、`DisplayBrightnessMappingSmoke`、`PrivilegedSupportSmoke` 全部通过；
+  `scripts/build-app.sh release` 构建并签名成功，`codesign --verify --strict --deep` 通过。
+- **未做**：真实安装/卸载助手、切换显示模式、风扇实际写入的端到端验证（需要交互式管理员授权与真实硬件状态），
+  以及另一台 Mac 或干净用户环境的首次安装测试。

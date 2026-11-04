@@ -41,10 +41,28 @@ final class DisplayManager {
 
     func refresh() {
         displays = (try? DisplayEnumerator.enumerate()) ?? []
+        // Drop per-display caches for screens that are gone; DDC devices hold an
+        // IOAVService for a specific panel and go stale after an unplug.
+        let alive = Set(displays.map(\.identifier))
+        ddcDevices = ddcDevices.filter { alive.contains($0.key) }
+        brightnessControllers = brightnessControllers.filter { alive.contains($0.key) }
+        lastKnownBrightness = lastKnownBrightness.filter { alive.contains($0.key) }
         for controller in brightnessControllers.values {
             controller.updateHDRState()
         }
         onDisplaysChanged?()
+    }
+
+    /// Reconfiguration callbacks arrive in bursts (mode change fires several);
+    /// coalesce them into one refresh on the next runloop turn.
+    private var refreshScheduled = false
+    func scheduleRefresh() {
+        guard !refreshScheduled else { return }
+        refreshScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshScheduled = false
+            self?.refresh()
+        }
     }
 
     func display(with identifier: CGDirectDisplayID) -> DisplayInfo? {
@@ -139,7 +157,7 @@ final class DisplayManager {
         guard let userInfo else { return }
         let manager = Unmanaged<DisplayManager>.fromOpaque(userInfo).takeUnretainedValue()
         DispatchQueue.main.async {
-            manager.refresh()
+            manager.scheduleRefresh()
         }
     }
 }

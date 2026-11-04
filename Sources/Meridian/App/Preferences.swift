@@ -121,6 +121,8 @@ final class Preferences: ObservableObject {
         static let appearance = "v2.appearance"
         static let hotKeys = "v2.hotKeys"
         static let telemetryInterval = "v2.telemetryInterval"
+        static let publicIP = "v2.publicIPLookup"
+        static let confirmURL = "v2.confirmURLActions"
         static let onboarded = "v2.onboarded"
     }
 
@@ -151,6 +153,18 @@ final class Preferences: ObservableObject {
     /// 监控采样间隔（秒）。弹出面板可见时自动提速到 1 秒。
     @Published var telemetryInterval: Double {
         didSet { defaults.set(telemetryInterval, forKey: Key.telemetryInterval) }
+    }
+
+    /// 是否允许调用第三方服务查询出口公网 IP。查询会把本机出口 IP 交给
+    /// ipinfo.io / freeipapi.com，所以默认关闭，只在用户明确开启后才会请求。
+    @Published var publicIPLookupEnabled: Bool {
+        didSet { defaults.set(publicIPLookupEnabled, forKey: Key.publicIP) }
+    }
+
+    /// 外部链接触发的硬件操作（风扇、分辨率、HDR、截图等）是否先确认。
+    /// 默认开启；用户在确认框里勾选“以后不再确认”后才会关闭。
+    @Published var confirmURLActions: Bool {
+        didSet { defaults.set(confirmURLActions, forKey: Key.confirmURL) }
     }
 
     @Published private(set) var launchAtLogin: Bool = false
@@ -196,6 +210,9 @@ final class Preferences: ObservableObject {
         hotKeys = keys
         let interval = defaults.double(forKey: Key.telemetryInterval)
         telemetryInterval = (1...10).contains(interval) ? interval : 2
+        publicIPLookupEnabled = defaults.bool(forKey: Key.publicIP)
+        // 未写入过时默认开启（getBool 会返回 false，所以用 object 判断是否已有值）。
+        confirmURLActions = (defaults.object(forKey: Key.confirmURL) as? Bool) ?? true
         refreshLaunchAtLogin()
     }
 
