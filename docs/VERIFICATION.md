@@ -160,3 +160,20 @@
   应用侧比较包内与已安装的守护进程，不一致时在散热页显示“更新…”并在切换非自动模式时引导更新。
 - 需重新安装守护进程后修复才生效。睡眠唤醒后寄存器归零的场景尚未实测；可用
   `F0Md` 读回后手动验证。
+
+## 2026-11-04 网络累计流量每 4 GiB「自动重置」
+
+- 现象：网络详情里的「累计下载 / 累计上传」会周期性跳回很小的值，像是被清零；
+  用户截图看到「累计下载 15.0 MB / 累计上传 3.2 GB」而实际用量已达几十 GB。
+- 根因：`NET_RT_IFLIST2` 返回的 `if_msghdr2.ifm_data.ifi_ibytes / ifi_obytes` 在 macOS 27 上
+  只有 32 位，累计满 4 GiB 就回绕。实测 en1 下载已回绕 16 次、上传 1 次，
+  应用读到的值与 `netstat -ibn` 的差值恰好是 2^32 的整数倍。
+- 修复：新增 `InterfaceCounters`，改走 ifmib（`net.link.generic.ifdata.<index>.general`，
+  MIB `[CTL_NET, PF_LINK, NETLINK_GENERIC, IFMIB_IFDATA, index, IFDATA_GENERAL]`）读 64 位计数；
+  索引由 `if_nameindex()` 枚举（索引不连续，不能用接口数量当上界）。
+  同时用 `InterfaceVolumeTracker` 把计数器复位、接口重建的旧读数并进基线，累计值只增不减；
+  累计量改为覆盖全部物理网卡，而不是只取单一主接口。
+- 验证：`InterfaceCounters.read()` 与 `netstat -ibn` 的 en1 读数一致（in 71.4 GB / out 8.0 GB）；
+  连续采样不倒退；`InterfaceVolumeTracker` 的回绕、接口消失、接口重建三组用例通过；
+  `MonitoringLabKitSmoke` 通过；Release 版已重新构建、签名并安装到 `/Applications/Meridian.app`，
+  真机网络面板显示 71.4 GB / 8.0 GB，与系统一致。

@@ -68,8 +68,7 @@ public struct ProcessRanking: Sendable, Equatable {
 public final class SystemSampler: @unchecked Sendable {
     private var previousBusy: [UInt64] = []
     private var previousIdle: [UInt64] = []
-    private var previousNet: [String: (received: UInt64, sent: UInt64)] = [:]
-    private var previousNetTime: UInt64 = 0
+    private var trafficSampler = NetworkTrafficSampler()
     private var previousDiskRead: UInt64 = 0
     private var previousDiskWrite: UInt64 = 0
     private var previousDiskTime: UInt64 = 0
@@ -193,40 +192,15 @@ public final class SystemSampler: @unchecked Sendable {
 
     /// 汇总物理接口（en*），避免代理隧道（utun）把同一份流量重复计数。
     private func sampleNetwork(into snapshot: inout SystemSnapshot, now: UInt64) {
-        let counters = NetModule.interfaceCounters()
-        let physical = counters.filter { $0.key.hasPrefix("en") }
-        var up: Double = 0
-        var down: Double = 0
-        var active: [String] = []
-        var deltas: [String: (received: UInt64, sent: UInt64)] = [:]
-        if previousNetTime > 0, now > previousNetTime {
-            let elapsed = Double(now - previousNetTime) / 1_000_000_000
-            for (name, current) in physical {
-                guard let previous = previousNet[name] else { continue }
-                let received = current.received >= previous.received ? current.received - previous.received : 0
-                let sent = current.sent >= previous.sent ? current.sent - previous.sent : 0
-                deltas[name] = (received, sent)
-                if received + sent > 0 { active.append(name) }
-                down += Double(received) / elapsed
-                up += Double(sent) / elapsed
-            }
-        }
-        let primaryName = active.max {
-            let lhs = (deltas[$0]?.received ?? 0) + (deltas[$0]?.sent ?? 0)
-            let rhs = (deltas[$1]?.received ?? 0) + (deltas[$1]?.sent ?? 0)
-            return lhs < rhs
-        } ?? physical.max {
-            $0.value.received + $0.value.sent < $1.value.received + $1.value.sent
-        }?.key
-        let primary = primaryName.flatMap { physical[$0] }
-        previousNet = physical
-        previousNetTime = now
-        snapshot.netUpPerSecond = up
-        snapshot.netDownPerSecond = down
+        let traffic = trafficSampler.sample(now: now)
+        let primaryName = traffic.primaryInterface
+        snapshot.netUpPerSecond = traffic.upBytesPerSecond
+        snapshot.netDownPerSecond = traffic.downBytesPerSecond
         snapshot.netInterface = primaryName ?? ""
-        snapshot.netTotalDownBytes = primary?.received ?? 0
-        snapshot.netTotalUpBytes = primary?.sent ?? 0
-        snapshot.netInterfaces = active.isEmpty ? primaryName.map { [$0] } ?? [] : active
+        snapshot.netTotalDownBytes = traffic.totalDownBytes
+        snapshot.netTotalUpBytes = traffic.totalUpBytes
+        snapshot.netInterfaces = traffic.activeInterfaces.isEmpty
+            ? primaryName.map { [$0] } ?? [] : traffic.activeInterfaces
         if primaryName != cachedIPInterface || now - ipTime > 10_000_000_000 || cachedIP.isEmpty {
             ipTime = now
             cachedIPInterface = primaryName ?? ""

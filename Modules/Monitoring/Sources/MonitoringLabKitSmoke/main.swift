@@ -32,6 +32,26 @@ MainActor.assumeIsolated {
     let networkNames = ranking.byNetwork.prefix(3).map(\.name).joined(separator: ",")
     print("Monitoring sampler live: interface=\(live.netInterface) networkRanking=\(ranking.byNetwork.count) top=\(networkNames)")
 
+    // 累计字节不能因为计数器回绕或接口重建而变小（macOS 27 的 NET_RT_IFLIST2 只有 32 位）。
+    let counters = InterfaceCounters.read()
+    guard counters[live.netInterface] != nil else {
+        failure = "interface counters missing for \(live.netInterface)"
+        return
+    }
+    var tracker = InterfaceVolumeTracker()
+    let first = tracker.update(["en1": (1_000, 2_000)])
+    let reset = tracker.update(["en1": (5, 10)])
+    guard first["en1"]?.received == 1_000, first["en1"]?.sent == 2_000,
+          reset["en1"]?.received == 1_005, reset["en1"]?.sent == 2_010 else {
+        failure = "volume tracker must carry the previous reading over a counter reset: \(reset)"
+        return
+    }
+    guard tracker.update([:])["en1"]?.received == 1_005 else {
+        failure = "volume tracker must keep totals when an interface disappears"
+        return
+    }
+    print("Interface counters: \(counters.count) interfaces, volume tracker monotonic")
+
     let module = MonitoringLabModule(embedded: true)
     var preferencesRouted = false
     module.onShowPreferences = { preferencesRouted = true }

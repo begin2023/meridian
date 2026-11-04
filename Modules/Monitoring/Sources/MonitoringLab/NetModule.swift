@@ -6,7 +6,7 @@ final class NetModule: BaseModule {
     struct Snapshot {
         var upBytesPerSecond: Double = 0
         var downBytesPerSecond: Double = 0
-        /// 主接口自开机或计数器复位以来的累计上传与下载字节。
+        /// 物理网卡自开机或计数器复位以来的累计上传与下载字节；计数器回绕不会让它变小。
         var interfaceTotalUpBytes: UInt64 = 0
         var interfaceTotalDownBytes: UInt64 = 0
         /// 主接口的 IPv4(无则 IPv6)地址。
@@ -14,7 +14,7 @@ final class NetModule: BaseModule {
     }
 
     // 采样队列独占的差分状态
-    private var previousTimestamp: UInt64 = 0
+    private var trafficSampler = NetworkTrafficSampler()
 
     // 主线程消费
     private var snapshot = Snapshot()
@@ -34,43 +34,17 @@ final class NetModule: BaseModule {
         super.init(id: "net", displayName: "网络")
     }
 
-    // 采样队列独占:每个接口上一轮的累计字节
-    private var previousPerInterface: [String: (received: UInt64, sent: UInt64)] = [:]
-
     override func sample() {
-        let currentPerInterface = Self.interfaceCounters()
-
-        // 主接口 = 累计流量最大的接口。开 VPN 时 en* 与 utun* 镜像同一份流量,
-        // 求和会双倍计数;物理网卡的累计量恒大于隧道,选单一主接口即可规避。
-        let primary = currentPerInterface
-            .max { $0.value.received + $0.value.sent < $1.value.received + $1.value.sent }?
-            .key
-
-        let now = DispatchTime.now().uptimeNanoseconds
-        var up: Double = 0
-        var down: Double = 0
-        if previousTimestamp > 0, now > previousTimestamp, let primary,
-           let previous = previousPerInterface[primary], let current = currentPerInterface[primary] {
-            let elapsedSeconds = Double(now - previousTimestamp) / 1_000_000_000
-            if current.received >= previous.received {
-                down = Double(current.received - previous.received) / elapsedSeconds
-            }
-            if current.sent >= previous.sent {
-                up = Double(current.sent - previous.sent) / elapsedSeconds
-            }
-        }
-        previousPerInterface = currentPerInterface
-        previousTimestamp = now
-
-        let interfaceTotals = primary.flatMap { currentPerInterface[$0] } ?? (received: UInt64(0), sent: UInt64(0))
+        let traffic = trafficSampler.sample()
+        let primary = traffic.primaryInterface
         let primaryIP = primary.flatMap { Self.primaryIPAddress(of: $0) } ?? ""
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.snapshot.downBytesPerSecond = max(down, 0)
-            self.snapshot.upBytesPerSecond = max(up, 0)
-            self.snapshot.interfaceTotalDownBytes = interfaceTotals.received
-            self.snapshot.interfaceTotalUpBytes = interfaceTotals.sent
+            self.snapshot.downBytesPerSecond = max(traffic.downBytesPerSecond, 0)
+            self.snapshot.upBytesPerSecond = max(traffic.upBytesPerSecond, 0)
+            self.snapshot.interfaceTotalDownBytes = traffic.totalDownBytes
+            self.snapshot.interfaceTotalUpBytes = traffic.totalUpBytes
             self.snapshot.ipAddress = primaryIP
             self.currentInterfaceNames = primary ?? "无活动接口"
             if AppSettings.shared.networkGeoLookupEnabled, primaryIP != self.lastLookedUpIP {
@@ -297,34 +271,10 @@ extension NetModule {
 #endif
 
 extension NetModule {
-    // getifaddrs 的 if_data 字节计数在 macOS 26+ 上不可靠(与 netstat 相差几十倍),
-    // 改用 netstat 同源的 sysctl NET_RT_IFLIST2(if_data64)。
+    /// 各接口累计收发字节（64 位）。数据源见 `InterfaceCounters`。
     static func interfaceCounters() -> [String: (received: UInt64, sent: UInt64)] {
-        var mib: [Int32] = [CTL_NET, AF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
-        var length = 0
-        guard sysctl(&mib, 6, nil, &length, nil, 0) == 0, length > 0 else { return [:] }
-        let buffer = UnsafeMutableRawPointer.allocate(byteCount: length, alignment: MemoryLayout<Int8>.alignment)
-        defer { buffer.deallocate() }
-        guard sysctl(&mib, 6, buffer, &length, nil, 0) == 0 else { return [:] }
-
-        var result: [String: (received: UInt64, sent: UInt64)] = [:]
-        var offset = 0
-        while offset + MemoryLayout<if_msghdr2>.size <= length {
-            let header = buffer.loadUnaligned(fromByteOffset: offset, as: if_msghdr2.self)
-            if header.ifm_type == RTM_IFINFO2, header.ifm_flags & IFF_UP != 0 {
-                var nameBuffer = [CChar](repeating: 0, count: Int(IF_NAMESIZE))
-                if_indextoname(UInt32(header.ifm_index), &nameBuffer)
-                let name = String(cString: nameBuffer)
-                // 回环是本机 IPC,不是网络流量
-                if !name.hasPrefix("lo") {
-                    result[name] = (header.ifm_data.ifi_ibytes, header.ifm_data.ifi_obytes)
-                }
-            }
-            offset += Int(header.ifm_msglen)
-        }
-        return result
+        InterfaceCounters.read()
     }
-
 }
 
 #if DEBUG
