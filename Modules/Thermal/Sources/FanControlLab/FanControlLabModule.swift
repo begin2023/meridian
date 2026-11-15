@@ -1,5 +1,6 @@
 import AppKit
 import CoreFoundation
+import MeridianLocalization
 
 /// Stable, read-only façade used by the standalone app and ThermalAgent.
 ///
@@ -260,7 +261,7 @@ public final class FanControlLabModule: NSObject, NSApplicationDelegate {
         update: MonitorUpdate?,
         settings: AppSettings
     ) -> String {
-        guard let update else { return "等待首次采样" }
+        guard let update else { return L("等待首次采样", "Waiting for first sample") }
         var parts: [String] = []
         if let fan = update.fans.first {
             parts.append(String(format: "%.0f RPM", fan.currentRPM))
@@ -269,7 +270,7 @@ public final class FanControlLabModule: NSObject, NSApplicationDelegate {
            let cpu = MonitorUpdate.groupAverage(of: update.sensors, kind: .cpu) {
             parts.append(settings.formattedTemperature(cpu))
         }
-        return parts.isEmpty ? "未检测到风扇" : parts.joined(separator: " · ")
+        return parts.isEmpty ? L("未检测到风扇", "No fans detected") : parts.joined(separator: " · ")
     }
 
     private func isWriteCommand(_ command: String) -> Bool {

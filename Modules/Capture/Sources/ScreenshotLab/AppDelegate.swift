@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import ImageIO
+import MeridianLocalization
 import UniformTypeIdentifiers
 
 private enum LocalImageOpenError: LocalizedError {
@@ -13,15 +14,15 @@ private enum LocalImageOpenError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreadable:
-            return "无法读取所选图片文件。"
+            return L("无法读取所选图片文件。", "Couldn’t read the selected image file.")
         case .unsupportedType:
-            return "所选文件不是受支持的图片格式。"
+            return L("所选文件不是受支持的图片格式。", "The selected file isn’t a supported image format.")
         case .fileTooLarge:
-            return "所选图片超过 128 MiB 限制。"
+            return L("所选图片超过 128 MiB 限制。", "The selected image exceeds the 128 MiB limit.")
         case .invalidDimensions:
-            return "图片尺寸为空、超过 16384 像素或总像素超过 6400 万。"
+            return L("图片尺寸为空、超过 16384 像素或总像素超过 6400 万。", "The image is empty, wider or taller than 16,384 pixels, or larger than 64 megapixels.")
         case .decodeFailed:
-            return "无法解码所选图片。"
+            return L("无法解码所选图片。", "Couldn’t decode the selected image.")
         }
     }
 }
@@ -177,48 +178,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     private func configureMainMenu() {
         let mainMenu = NSMenu()
-        let productName = embedded ? "Meridian 截图" : "ScreenshotLab"
+        let productName = embedded ? L("Meridian 截图", "Meridian Screenshot") : "ScreenshotLab"
         let appMenu = NSMenu(title: productName)
-        appMenu.addItem(menuItem(title: "偏好设置…", action: #selector(showPreferences), key: ","))
+        appMenu.addItem(menuItem(title: L("偏好设置…", "Settings…"), action: #selector(showPreferences), key: ","))
         appMenu.addItem(.separator())
-        appMenu.addItem(NSMenuItem(title: "隐藏\(productName)", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
-        let hideOthers = NSMenuItem(title: "隐藏其他应用", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        appMenu.addItem(NSMenuItem(title: L("隐藏\(productName)", "Hide \(productName)"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
+        let hideOthers = NSMenuItem(title: L("隐藏其他应用", "Hide Others"), action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
         hideOthers.keyEquivalentModifierMask = [.command, .option]
         appMenu.addItem(hideOthers)
         if !embedded {
             appMenu.addItem(.separator())
-            appMenu.addItem(menuItem(title: "退出 ScreenshotLab", action: #selector(quit), key: "q"))
+            appMenu.addItem(menuItem(title: L("退出 ScreenshotLab", "Quit ScreenshotLab"), action: #selector(quit), key: "q"))
         }
 
-        let fileMenu = NSMenu(title: "文件")
-        fileMenu.addItem(menuItem(title: "新建截图", action: #selector(startCapture), key: "n"))
-        fileMenu.addItem(menuItem(title: "保存图片…", action: #selector(saveEditorImage), key: "s"))
-        let quick = menuItem(title: "快速保存到默认目录", action: #selector(quickSaveEditorImage), key: "s")
+        let fileMenu = NSMenu(title: L("文件", "File"))
+        fileMenu.addItem(menuItem(title: L("新建截图", "New Screenshot"), action: #selector(startCapture), key: "n"))
+        fileMenu.addItem(menuItem(title: L("保存图片…", "Save Image…"), action: #selector(saveEditorImage), key: "s"))
+        let quick = menuItem(title: L("快速保存到默认目录", "Quick Save to Default Folder"), action: #selector(quickSaveEditorImage), key: "s")
         quick.keyEquivalentModifierMask = [.command, .option]
         fileMenu.addItem(quick)
         fileMenu.addItem(.separator())
-        fileMenu.addItem(menuItem(title: "截图历史…", action: #selector(showScreenshotHistory), key: ""))
+        fileMenu.addItem(menuItem(title: L("截图历史…", "Screenshot History…"), action: #selector(showScreenshotHistory), key: ""))
         fileMenu.addItem(.separator())
-        fileMenu.addItem(NSMenuItem(title: "关闭窗口", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
+        fileMenu.addItem(NSMenuItem(title: L("关闭窗口", "Close Window"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
 
-        let editMenu = NSMenu(title: "编辑")
-        editMenu.addItem(NSMenuItem(title: "撤销", action: #selector(AnnotationCanvasView.undo(_:)), keyEquivalent: "z"))
-        let redo = NSMenuItem(title: "重做", action: #selector(AnnotationCanvasView.redo(_:)), keyEquivalent: "z")
+        let editMenu = NSMenu(title: L("编辑", "Edit"))
+        editMenu.addItem(NSMenuItem(title: L("撤销", "Undo"), action: #selector(AnnotationCanvasView.undo(_:)), keyEquivalent: "z"))
+        let redo = NSMenuItem(title: L("重做", "Redo"), action: #selector(AnnotationCanvasView.redo(_:)), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
         editMenu.addItem(redo)
         editMenu.addItem(.separator())
-        editMenu.addItem(NSMenuItem(title: "剪切", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
-        editMenu.addItem(NSMenuItem(title: "复制", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
-        editMenu.addItem(NSMenuItem(title: "粘贴", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
-        editMenu.addItem(NSMenuItem(title: "全选", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenu.addItem(NSMenuItem(title: L("剪切", "Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: L("复制", "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: L("粘贴", "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+        editMenu.addItem(NSMenuItem(title: L("全选", "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
         editMenu.addItem(.separator())
-        editMenu.addItem(menuItem(title: "清空所有标注…", action: #selector(clearEditorAnnotations), key: ""))
+        editMenu.addItem(menuItem(title: L("清空所有标注…", "Clear All Annotations…"), action: #selector(clearEditorAnnotations), key: ""))
 
-        let windowsMenu = NSMenu(title: "窗口")
-        windowsMenu.addItem(NSMenuItem(title: "最小化", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
-        windowsMenu.addItem(NSMenuItem(title: "缩放", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: ""))
+        let windowsMenu = NSMenu(title: L("窗口", "Window"))
+        windowsMenu.addItem(NSMenuItem(title: L("最小化", "Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
+        windowsMenu.addItem(NSMenuItem(title: L("缩放", "Zoom"), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: ""))
         windowsMenu.addItem(.separator())
-        windowsMenu.addItem(menuItem(title: "显示所有窗口", action: #selector(showApplicationWindows), key: ""))
+        windowsMenu.addItem(menuItem(title: L("显示所有窗口", "Show All Windows"), action: #selector(showApplicationWindows), key: ""))
         for submenu in [appMenu, fileMenu, editMenu, windowsMenu] {
             let item = NSMenuItem(title: submenu.title, action: nil, keyEquivalent: "")
             item.submenu = submenu
@@ -291,36 +292,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
         let menu = NSMenu()
         let captureItem = menuItem(
-            title: "截图    \(settings.captureHotKey.name)",
+            title: L("截图    \(settings.captureHotKey.name)", "Capture Area    \(settings.captureHotKey.name)"),
             action: #selector(startCapture),
             key: ""
         )
         captureMenuItem = captureItem
         menu.addItem(captureItem)
         menu.addItem(menuItem(
-            title: "截取当前屏幕",
+            title: L("截取当前屏幕", "Capture Screen"),
             action: #selector(captureFullScreen),
             key: ""
         ))
         menu.addItem(menuItem(
-            title: "截取活动窗口",
+            title: L("截取活动窗口", "Capture Active Window"),
             action: #selector(captureActiveWindow),
             key: ""
         ))
         menu.addItem(menuItem(
-            title: "延时 3 秒截图",
+            title: L("延时 3 秒截图", "Capture in 3 Seconds"),
             action: #selector(captureDelayedAction),
             key: ""
         ))
         let gifItem = menuItem(
-            title: "录制 GIF…",
+            title: L("录制 GIF…", "Record GIF…"),
             action: #selector(beginGIFSelection),
             key: ""
         )
         gifMenuItem = gifItem
         menu.addItem(gifItem)
         let recentItem = menuItem(
-            title: "打开最近保存",
+            title: L("打开最近保存", "Open Recently Saved"),
             action: #selector(openRecentSavedFile),
             key: ""
         )
@@ -330,46 +331,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         } ?? false
         menu.addItem(recentItem)
         menu.addItem(menuItem(
-            title: "截图历史…",
+            title: L("截图历史…", "Screenshot History…"),
             action: #selector(showScreenshotHistory),
             key: ""
         ))
         menu.addItem(menuItem(
-            title: "截取上一次区域",
+            title: L("截取上一次区域", "Capture Previous Area"),
             action: #selector(captureLastArea),
             key: ""
         ))
         menu.addItem(.separator())
         menu.addItem(menuItem(
-            title: "显示全部钉图",
+            title: L("显示全部钉图", "Show All Pins"),
             action: #selector(showAllPins),
             key: ""
         ))
         menu.addItem(menuItem(
-            title: "隐藏全部钉图",
+            title: L("隐藏全部钉图", "Hide All Pins"),
             action: #selector(hideAllPins),
             key: ""
         ))
         menu.addItem(menuItem(
-            title: "关闭全部钉图",
+            title: L("关闭全部钉图", "Close All Pins"),
             action: #selector(closeAllPins),
             key: ""
         ))
         menu.addItem(.separator())
-        menu.addItem(menuItem(title: "显示所有窗口", action: #selector(showApplicationWindows), key: ""))
+        menu.addItem(menuItem(title: L("显示所有窗口", "Show All Windows"), action: #selector(showApplicationWindows), key: ""))
         menu.addItem(menuItem(
-            title: "偏好设置…",
+            title: L("偏好设置…", "Settings…"),
             action: #selector(showPreferences),
             key: ","
         ))
         menu.addItem(menuItem(
-            title: "屏幕录制权限…",
+            title: L("屏幕录制权限…", "Screen Recording Permission…"),
             action: #selector(showScreenPermissionHelp),
             key: ""
         ))
         menu.addItem(.separator())
         menu.addItem(menuItem(
-            title: "退出 ScreenshotLab",
+            title: L("退出 ScreenshotLab", "Quit ScreenshotLab"),
             action: #selector(quit),
             key: "q"
         ))
@@ -399,12 +400,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             settings.captureHotKey
         ) ?? false
         let gifRegistered = gifHotKeyManager?.register(settings.gifHotKey) ?? false
-        captureMenuItem?.title = "截图    \(settings.captureHotKey.name)"
-        gifMenuItem?.title = "录制 GIF…    \(settings.gifHotKey.name)"
+        captureMenuItem?.title = L("截图    \(settings.captureHotKey.name)", "Capture Area    \(settings.captureHotKey.name)")
+        gifMenuItem?.title = L("录制 GIF…    \(settings.gifHotKey.name)", "Record GIF…    \(settings.gifHotKey.name)")
 
         if !captureRegistered || !gifRegistered {
             showTemporaryMessage(
-                "快捷键已被其他应用占用，请换一个",
+                L("快捷键已被其他应用占用，请换一个", "That shortcut is in use by another app. Choose a different one."),
                 duration: 4
             )
         }
@@ -527,7 +528,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func captureDelayed(seconds: TimeInterval) {
         lastError = nil
         captureController.beginDelayedCapture(seconds: seconds)
-        showTemporaryMessage("\(Int(seconds.rounded())) 秒后截图")
+        showTemporaryMessage(L("\(Int(seconds.rounded())) 秒后截图", "Capturing in \(Int(seconds.rounded())) s"))
     }
 
     @objc func beginGIFSelection() {
@@ -633,10 +634,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func showScreenPermissionHelp() {
         let alert = NSAlert()
-        alert.messageText = "屏幕录制权限"
+        alert.messageText = L("屏幕录制权限", "Screen Recording Permission")
         alert.informativeText = ScreenCaptureError.permissionDenied.localizedDescription
-        alert.addButton(withTitle: "打开系统设置")
-        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: L("打开系统设置", "Open System Settings"))
+        alert.addButton(withTitle: L("取消", "Cancel"))
         if alert.runModal() == .alertFirstButtonReturn {
             let url = URL(
                 string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
@@ -684,7 +685,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             "gifStarting": gifRecordingStarting,
             "lastError": lastError ?? "",
             "hotKeysManagedByShell": embedded,
-            "workWindowMenuAvailable": NSApp.mainMenu?.item(withTitle: "文件")?.submenu?.items.contains {
+            "workWindowMenuAvailable": NSApp.mainMenu?.item(withTitle: L("文件", "File"))?.submenu?.items.contains {
                 $0.keyEquivalent == "w" && $0.action == #selector(NSWindow.performClose(_:))
             } == true,
             "captureHotKey": settings.captureHotKey.name,
@@ -742,9 +743,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func beginOpenImagePanel() {
         lastError = nil
         let panel = NSOpenPanel()
-        panel.title = "打开图片"
-        panel.prompt = "打开"
-        panel.message = "选择 PNG、JPEG、TIFF、HEIC、GIF 或 BMP 图片"
+        panel.title = L("打开图片", "Open Image")
+        panel.prompt = L("打开", "Open")
+        panel.message = L("选择 PNG、JPEG、TIFF、HEIC、GIF 或 BMP 图片", "Choose a PNG, JPEG, TIFF, HEIC, GIF or BMP image")
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
@@ -846,7 +847,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         CommandLine.arguments.contains { historySuppressingArguments.contains($0) }
     }
 
-    private func copyImage(_ image: CGImage, recordInHistory: Bool = true) {
+    @discardableResult
+    private func copyImage(_ image: CGImage, recordInHistory: Bool = true) -> Bool {
         do {
             try ImageActions.copyToPasteboard(
                 image,
@@ -855,13 +857,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             if recordInHistory {
                 recordHistoryImage(image)
             }
-            showTemporaryMessage("已复制到剪贴板")
+            showTemporaryMessage(L("已复制到剪贴板", "Copied to clipboard"))
+            return true
         } catch {
             showError(error)
+            return false
         }
     }
 
-    private func saveImage(_ image: CGImage, recordInHistory: Bool = true) {
+    /// `completion` 只在用户确认保存后调用；取消保存面板时不回调。
+    private func saveImage(
+        _ image: CGImage,
+        recordInHistory: Bool = true,
+        completion: ((Bool) -> Void)? = nil
+    ) {
         ImageActions.saveWithPanel(image) { [weak self] result in
             switch result {
             case .success(let url):
@@ -869,13 +878,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                     self?.recordHistoryImage(image)
                 }
                 self?.showSavedFile(url)
+                completion?(true)
             case .failure(let error):
                 self?.showError(error)
+                completion?(false)
             }
         }
     }
 
-    private func quickSaveImage(_ image: CGImage, recordInHistory: Bool = true) {
+    @discardableResult
+    private func quickSaveImage(_ image: CGImage, recordInHistory: Bool = true) -> Bool {
         do {
             let url = try ImageActions.quickSave(
                 image,
@@ -885,8 +897,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 recordHistoryImage(image)
             }
             showSavedFile(url)
+            return true
         } catch {
             showError(error)
+            return false
         }
     }
 
@@ -944,7 +958,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 self.gifRecordingStarting = false
                 self.configureGIFMenu(recording: true, starting: false)
                 hud.show(on: screen)
-                self.showTemporaryMessage("GIF 录制中，点击菜单栏或 HUD 停止")
+                self.showTemporaryMessage(L("GIF 录制中，点击菜单栏或 HUD 停止", "Recording GIF. Click the menu bar icon or the HUD to stop."))
             } catch {
                 guard let self, self.isStarted else {
                     hud.hide()
@@ -965,7 +979,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func stopGIFRecording(save: Bool) {
         guard !gifRecordingStarting else {
-            showTemporaryMessage("GIF 录制正在启动")
+            showTemporaryMessage(L("GIF 录制正在启动", "Starting GIF recording"))
             return
         }
         guard let gifRecorder else {
@@ -991,7 +1005,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             showSavedFile(url)
         case .failure(let error):
             if error is CancellationError {
-                showTemporaryMessage("已取消 GIF 录制")
+                showTemporaryMessage(L("已取消 GIF 录制", "GIF recording canceled"))
             } else {
                 showError(error)
             }
@@ -1000,10 +1014,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     private func configureGIFMenu(recording: Bool, starting: Bool) {
         if starting {
-            gifMenuItem?.title = "正在启动 GIF 录制…"
+            gifMenuItem?.title = L("正在启动 GIF 录制…", "Starting GIF Recording…")
             gifMenuItem?.action = #selector(gifStartInProgress)
         } else {
-            gifMenuItem?.title = recording ? "停止并保存 GIF" : "录制 GIF…"
+            gifMenuItem?.title = recording ? L("停止并保存 GIF", "Stop and Save GIF") : L("录制 GIF…", "Record GIF…")
             gifMenuItem?.action = recording
                 ? #selector(stopGIFRecordingAction)
                 : #selector(beginGIFSelection)
@@ -1035,7 +1049,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     @objc private func gifStartInProgress() {
-        showTemporaryMessage("GIF 录制正在启动")
+        showTemporaryMessage(L("GIF 录制正在启动", "Starting GIF recording"))
     }
 
     private func performOCR(
@@ -1084,13 +1098,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             guard let self else {
                 return
             }
+            // 复制或保存成功后编辑就算完成，关闭编辑器；失败或取消保存时保留编辑内容。
+            let finish = { [weak controller] (succeeded: Bool) in
+                if succeeded { controller?.window?.close() }
+            }
             switch action {
             case .copy:
-                self.copyImage(editedImage)
+                finish(self.copyImage(editedImage))
             case .save:
-                self.saveImage(editedImage)
+                self.saveImage(editedImage, completion: finish)
             case .quickSave:
-                self.quickSaveImage(editedImage)
+                finish(self.quickSaveImage(editedImage))
             case .pin:
                 self.recordHistoryImage(editedImage)
                 self.pinManager.add(image: editedImage)
@@ -2054,7 +2072,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         if let captureError = error as? ScreenCaptureError,
            case .permissionDenied = captureError {
             showTemporaryMessage(
-                "需要屏幕录制权限，请从菜单打开权限引导",
+                L("需要屏幕录制权限，请从菜单打开权限引导", "Screen Recording permission is required. Open the permission guide from the menu."),
                 duration: 4
             )
             return
@@ -2062,9 +2080,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "操作失败"
+        alert.messageText = L("操作失败", "Operation Failed")
         alert.informativeText = error.localizedDescription
-        alert.addButton(withTitle: "好")
+        alert.addButton(withTitle: L("好", "OK"))
         alert.runModal()
     }
 

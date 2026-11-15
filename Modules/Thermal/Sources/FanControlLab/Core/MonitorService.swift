@@ -1,4 +1,5 @@
 import Foundation
+import MeridianLocalization
 
 /// 周期轮询 SMC：风扇转速与温度传感器，产出 MonitorUpdate 给 UI。
 /// 已知尺寸与类型的读取在用户态完成；写入由控制循环另行处理。
@@ -75,7 +76,7 @@ final class MonitorService {
             snapshots.append(
                 FanSnapshot(
                     index: Int(index),
-                    name: database?.fanName(for: Int(index)) ?? "风扇 \(index)",
+                    name: database?.fanName(for: Int(index)) ?? L("风扇 \(index)", "Fan \(index)"),
                     minimumRPM: minimum,
                     currentRPM: current,
                     maximumRPM: maximum,

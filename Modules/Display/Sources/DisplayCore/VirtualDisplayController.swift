@@ -1,6 +1,7 @@
 import CoreGraphics
 import DisplayPrivate
 import Foundation
+import MeridianLocalization
 
 /// Creates and tears down virtual screens through the private CGVirtualDisplay
 /// ObjC classes exported by CoreGraphics. Construction recipe requirements on
@@ -48,9 +49,9 @@ public final class VirtualDisplayController {
         public var errorDescription: String? {
             switch self {
             case .creationFailed(let detail):
-                return "虚拟屏幕创建失败：\(detail)"
+                return L("虚拟屏幕创建失败：\(detail)", "Couldn't create virtual display: \(detail)")
             case .unknownSpec:
-                return "虚拟屏幕配置不存在。"
+                return L("虚拟屏幕配置不存在。", "Virtual display configuration not found.")
             }
         }
     }
@@ -138,7 +139,7 @@ public final class VirtualDisplayController {
         }
 
         guard let display = CGVirtualDisplay(descriptor: descriptor) else {
-            throw VirtualDisplayError.creationFailed("CGVirtualDisplay 返回空。")
+            throw VirtualDisplayError.creationFailed(L("CGVirtualDisplay 返回空。", "CGVirtualDisplay returned nil."))
         }
 
         let settings = CGVirtualDisplaySettings()
@@ -148,7 +149,7 @@ public final class VirtualDisplayController {
         let supportsTransferFunction = CGVirtualDisplayMode.instancesRespond(
             to: #selector(CGVirtualDisplayMode.init(width:height:refreshRate:transferFunction:)))
         if spec.hdr && !supportsTransferFunction {
-            throw VirtualDisplayError.creationFailed("当前系统不支持 HDR 虚拟屏。")
+            throw VirtualDisplayError.creationFailed(L("当前系统不支持 HDR 虚拟屏。", "This version of macOS doesn't support HDR virtual displays."))
         }
         func mode(_ width: Int, _ height: Int) -> CGVirtualDisplayMode? {
             if spec.hdr {
@@ -167,7 +168,7 @@ public final class VirtualDisplayController {
         settings.hiDPI = spec.hiDPI ? 1 : 0
 
         guard display.apply(settings) else {
-            throw VirtualDisplayError.creationFailed("应用显示模式失败。")
+            throw VirtualDisplayError.creationFailed(L("应用显示模式失败。", "Couldn't apply the display mode."))
         }
 
         let displayID = display.displayID
@@ -201,7 +202,7 @@ public final class VirtualDisplayController {
         timeout: TimeInterval = 5
     ) throws -> MirrorSession {
         guard mirrorSession == nil else {
-            throw VirtualDisplayError.creationFailed("已有一个上采样会话，请先关闭它。")
+            throw VirtualDisplayError.creationFailed(L("已有一个上采样会话，请先关闭它。", "An upsampling session is already active; turn it off first."))
         }
 
         let instanceID = UUID()
@@ -216,7 +217,7 @@ public final class VirtualDisplayController {
         }
         guard CGDisplayPixelsWide(virtualID) > 0 else {
             instances.removeValue(forKey: instanceID)
-            throw VirtualDisplayError.creationFailed("虚拟屏幕未能在限时内上线，已自动丢弃。")
+            throw VirtualDisplayError.creationFailed(L("虚拟屏幕未能在限时内上线，已自动丢弃。", "The virtual display didn't come online in time and was discarded."))
         }
 
         // 系统会按物理尺寸给新虚拟屏挑一个“默认缩放”（实测为 1920×1080 或半尺寸 Retina），
@@ -225,25 +226,25 @@ public final class VirtualDisplayController {
         // 此时回退到 CGS 私有模式表——两者都用 CGDisplayBounds 点数核验。
         guard Self.selectTargetMode(on: virtualID, spec: spec) else {
             instances.removeValue(forKey: instanceID)
-            throw VirtualDisplayError.creationFailed("虚拟屏没有提供 \(Self.describe(spec)) 模式，已自动丢弃。")
+            throw VirtualDisplayError.creationFailed(L("虚拟屏没有提供 \(Self.describe(spec)) 模式，已自动丢弃。", "The virtual display doesn't offer a \(Self.describe(spec)) mode and was discarded."))
         }
 
         var config: CGDisplayConfigRef?
         guard CGBeginDisplayConfiguration(&config) == .success, let config else {
             instances.removeValue(forKey: instanceID)
-            throw VirtualDisplayError.creationFailed("无法开始显示器配置事务。")
+            throw VirtualDisplayError.creationFailed(L("无法开始显示器配置事务。", "Couldn't begin a display configuration transaction."))
         }
         let mirrorError = CGConfigureDisplayMirrorOfDisplay(config, physical, virtualID)
         guard mirrorError == .success else {
             CGCancelDisplayConfiguration(config)
             instances.removeValue(forKey: instanceID)
-            throw VirtualDisplayError.creationFailed("镜像配置失败（CGError \(mirrorError.rawValue)）。物理显示器未改动。")
+            throw VirtualDisplayError.creationFailed(L("镜像配置失败（CGError \(mirrorError.rawValue)）。物理显示器未改动。", "Mirror configuration failed (CGError \(mirrorError.rawValue)). The physical display was not changed."))
         }
         let completeError = CGCompleteDisplayConfiguration(config, .forSession)
         guard completeError == .success else {
             // Best-effort restore: drop the mirror and the virtual screen.
             try? teardownMirroredUpsample()
-            throw VirtualDisplayError.creationFailed("提交镜像配置失败（CGError \(completeError.rawValue)）。已自动还原。")
+            throw VirtualDisplayError.creationFailed(L("提交镜像配置失败（CGError \(completeError.rawValue)）。已自动还原。", "Couldn't commit the mirror configuration (CGError \(completeError.rawValue)). Reverted automatically."))
         }
 
         // WindowServer can accept the transaction and still not apply the
@@ -262,7 +263,7 @@ public final class VirtualDisplayController {
         }
         guard attached else {
             try? teardownMirroredUpsample()
-            throw VirtualDisplayError.creationFailed("系统接受了镜像配置但未应用（未生效），已自动还原，显示器未改动。")
+            throw VirtualDisplayError.creationFailed(L("系统接受了镜像配置但未应用（未生效），已自动还原，显示器未改动。", "The system accepted the mirror configuration but didn't apply it. Reverted automatically; the display was not changed."))
         }
 
         // 建立镜像后再确认一次模式（镜像组可能回落到双方都支持的模式）。
@@ -275,7 +276,7 @@ public final class VirtualDisplayController {
                                           physicalDisplayID: physical, spec: spec)
             try? teardownMirroredUpsample()
             throw VirtualDisplayError.creationFailed(
-                "系统没有采用 \(Self.describe(spec))（实际 \(Int(bounds.width))×\(Int(bounds.height))），已自动还原。")
+                L("系统没有采用 \(Self.describe(spec))（实际 \(Int(bounds.width))×\(Int(bounds.height))），已自动还原。", "The system didn't adopt \(Self.describe(spec)) (got \(Int(bounds.width))×\(Int(bounds.height))). Reverted automatically."))
         }
 
         let session = MirrorSession(

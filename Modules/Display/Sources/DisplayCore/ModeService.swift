@@ -1,5 +1,6 @@
 import CoreGraphics
 import DisplayPrivate
+import MeridianLocalization
 
 /// Enumerates and (from milestone 4) switches display modes. Public
 /// CoreGraphics modes are preferred for switching; the CGS private table
@@ -119,7 +120,7 @@ public enum ModeService {
 
         var config: CGDisplayConfigRef?
         guard CGBeginDisplayConfiguration(&config) == .success, let config else {
-            throw ModeServiceError.configurationFailed("无法开始显示器配置事务。")
+            throw ModeServiceError.configurationFailed(L("无法开始显示器配置事务。", "Couldn't begin a display configuration transaction."))
         }
         // A failed transaction must be ended without persisting it; committing
         // permanently on error would store whatever partial change was queued.
@@ -127,7 +128,7 @@ public enum ModeService {
         func finish() throws {
             let status = CGCompleteDisplayConfiguration(config, .permanently)
             guard status == .success else {
-                throw ModeServiceError.configurationFailed("提交显示器配置失败（\(status.rawValue)）。")
+                throw ModeServiceError.configurationFailed(L("提交显示器配置失败（\(status.rawValue)）。", "Couldn't commit the display configuration (\(status.rawValue))."))
             }
         }
 
@@ -135,7 +136,7 @@ public enum ModeService {
             let status = CGSConfigureDisplayMode(config, display, Int32(cgsIndex))
             guard status == .success else {
                 abort()
-                throw ModeServiceError.configurationFailed("CGSConfigureDisplayMode 失败（\(status.rawValue)）。")
+                throw ModeServiceError.configurationFailed(L("CGSConfigureDisplayMode 失败（\(status.rawValue)）。", "CGSConfigureDisplayMode failed (\(status.rawValue))."))
             }
             try finish()
             return
@@ -148,7 +149,7 @@ public enum ModeService {
         let status = CGConfigureDisplayWithDisplayMode(config, display, cgMode, nil)
         guard status == .success else {
             abort()
-            throw ModeServiceError.configurationFailed("CGConfigureDisplayWithDisplayMode 失败（\(status.rawValue)）。")
+            throw ModeServiceError.configurationFailed(L("CGConfigureDisplayWithDisplayMode 失败（\(status.rawValue)）。", "CGConfigureDisplayWithDisplayMode failed (\(status.rawValue))."))
         }
         try finish()
     }
@@ -164,9 +165,9 @@ public enum ModeServiceError: LocalizedError {
         case .configurationFailed(let message):
             return message
         case .modeMissing(let mode):
-            return "找不到模式 \(mode.label) 对应的显示模式。"
+            return L("找不到模式 \(mode.label) 对应的显示模式。", "No display mode matches \(mode.label).")
         case .unsupportedMode(let mode):
-            return "显示器在 \(Int(mode.refreshRate.rounded()))Hz 下没有与 \(mode.pixelWidth)×\(mode.pixelHeight) 同比例的刷新时序，切过去会把画面压进别的分辨率。已阻止。"
+            return L("显示器在 \(Int(mode.refreshRate.rounded()))Hz 下没有与 \(mode.pixelWidth)×\(mode.pixelHeight) 同比例的刷新时序，切过去会把画面压进别的分辨率。已阻止。", "The display has no \(Int(mode.refreshRate.rounded()))Hz timing with the same aspect ratio as \(mode.pixelWidth)×\(mode.pixelHeight); switching would squeeze the image into another resolution. Blocked.")
         }
     }
 }

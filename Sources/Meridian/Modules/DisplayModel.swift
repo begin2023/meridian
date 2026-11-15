@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import DisplayLabKit
+import MeridianLocalization
 
 /// 显示器：所有硬件操作来自显示模块；本类负责状态发布、错误提示和退出还原。
 @MainActor
@@ -101,7 +102,7 @@ final class DisplayModel: ObservableObject {
         busy.insert(id)
         engine.applyMode(mode, to: id) { [weak self] error in
             self?.busy.remove(id)
-            if let error { self?.message = "切换分辨率失败：\(error.localizedDescription)" }
+            if let error { self?.message = L("切换分辨率失败：\(error.localizedDescription)", "Couldn't change resolution: \(error.localizedDescription)") }
         }
     }
 
@@ -109,7 +110,7 @@ final class DisplayModel: ObservableObject {
         busy.insert(id)
         engine.applyResolution(option, to: id) { [weak self] error in
             self?.busy.remove(id)
-            if let error { self?.message = "切换分辨率失败：\(error.localizedDescription)" }
+            if let error { self?.message = L("切换分辨率失败：\(error.localizedDescription)", "Couldn't change resolution: \(error.localizedDescription)") }
         }
     }
 
@@ -117,7 +118,7 @@ final class DisplayModel: ObservableObject {
         busy.insert(id)
         engine.setHiDPI(on, for: id) { [weak self] error in
             self?.busy.remove(id)
-            if let error { self?.message = "切换 HiDPI 失败：\(error.localizedDescription)" }
+            if let error { self?.message = L("切换 HiDPI 失败：\(error.localizedDescription)", "Couldn't switch HiDPI: \(error.localizedDescription)") }
         }
     }
 
@@ -125,7 +126,7 @@ final class DisplayModel: ObservableObject {
         busy.insert(id)
         engine.applyRefreshRate(rate, to: id) { [weak self] error in
             self?.busy.remove(id)
-            if let error { self?.message = "切换刷新率失败：\(error.localizedDescription)" }
+            if let error { self?.message = L("切换刷新率失败：\(error.localizedDescription)", "Couldn't change refresh rate: \(error.localizedDescription)") }
         }
     }
 
@@ -133,7 +134,7 @@ final class DisplayModel: ObservableObject {
         busy.insert(id)
         engine.restoreNativeMode(for: id) { [weak self] error in
             self?.busy.remove(id)
-            if let error { self?.message = "恢复原生分辨率失败：\(error.localizedDescription)" }
+            if let error { self?.message = L("恢复原生分辨率失败：\(error.localizedDescription)", "Couldn't restore native resolution: \(error.localizedDescription)") }
         }
     }
 
@@ -143,7 +144,7 @@ final class DisplayModel: ObservableObject {
         busy.insert(id)
         engine.setHDR(on, for: id) { [weak self] ok in
             self?.busy.remove(id)
-            if !ok { self?.message = "HDR 未能切换，可在“系统设置 › 显示器”中尝试。" }
+            if !ok { self?.message = L("HDR 未能切换，可在“系统设置 › 显示器”中尝试。", "Couldn't switch HDR. Try it in System Settings › Displays.") }
         }
     }
 
@@ -154,7 +155,7 @@ final class DisplayModel: ObservableObject {
             try engine.createVirtualScreen(spec.withHDR(virtualHDR))
             message = nil
         } catch {
-            message = "创建虚拟屏失败：\(error.localizedDescription)"
+            message = L("创建虚拟屏失败：\(error.localizedDescription)", "Couldn't create virtual display: \(error.localizedDescription)")
         }
         sync()
     }
@@ -182,7 +183,7 @@ final class DisplayModel: ObservableObject {
             do {
                 self.message = try await body(self.engine)
             } catch {
-                self.message = "HiDPI 档位操作失败：\(error.localizedDescription)"
+                self.message = L("HiDPI 档位操作失败：\(error.localizedDescription)", "HiDPI mode operation failed: \(error.localizedDescription)")
             }
             self.busy.remove(id)
         }
@@ -226,7 +227,7 @@ final class DisplayModel: ObservableObject {
                 // 主动拦截并吞掉 F1/F2 的按键还需要辅助功能权限。
                 Permissions.request(.accessibility)
             }
-            message = "F1/F2 需要“输入监控”和“辅助功能”权限。请在提示或系统设置里授予，然后点“重新打开 Meridian”，再打开这个开关。"
+            message = L("F1/F2 需要“输入监控”和“辅助功能”权限。请在提示或系统设置里授予，然后点“重新打开 Meridian”，再打开这个开关。", "F1/F2 require “Input Monitoring” and “Accessibility” permissions. Grant them in the prompt or System Settings, click “Reopen Meridian”, then turn this switch on.")
         } else if brightnessKeysActive {
             brightnessKeysPermissionMissing = false
         }
@@ -237,7 +238,7 @@ extension ResolutionOption {
     /// 桌面“看起来像”的尺寸，例如“2560 × 1440”。
     var sizeLabel: String { "\(width) × \(height)" }
     /// 全部模式列表里区分 HiDPI 与普通模式。
-    var fullLabel: String { sizeLabel + (hiDPI ? " · HiDPI" : " · 普通") }
+    var fullLabel: String { sizeLabel + (hiDPI ? " · HiDPI" : L(" · 普通", " · Standard")) }
 }
 
 extension ScreenDisplay {

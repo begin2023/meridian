@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 // 偏好设置:模块开关、Widget 样式、采样间隔与开机自启,改动即时保存并生效。
 final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
@@ -13,7 +14,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "MonitoringLab 偏好设置"
+        window.title = L("MonitoringLab 偏好设置", "MonitoringLab Settings")
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
@@ -47,11 +48,11 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
 
         stack.addArrangedSubview(generalCard())
         stack.addArrangedSubview(moduleCard(id: "cpu", symbol: "cpu", name: "CPU"))
-        stack.addArrangedSubview(moduleCard(id: "ram", symbol: "memorychip", name: "内存"))
-        stack.addArrangedSubview(moduleCard(id: "net", symbol: "arrow.up.arrow.down", name: "网络"))
-        stack.addArrangedSubview(moduleCard(id: "disk", symbol: "internaldrive", name: "磁盘"))
+        stack.addArrangedSubview(moduleCard(id: "ram", symbol: "memorychip", name: L("内存", "Memory")))
+        stack.addArrangedSubview(moduleCard(id: "net", symbol: "arrow.up.arrow.down", name: L("网络", "Network")))
+        stack.addArrangedSubview(moduleCard(id: "disk", symbol: "internaldrive", name: L("磁盘", "Disk")))
 
-        let hint = NSTextField(labelWithString: "Widget 样式:文本显示数值;条形显示比例;图表显示最近走势。")
+        let hint = NSTextField(labelWithString: L("Widget 样式:文本显示数值;条形显示比例;图表显示最近走势。", "Widget style: Text shows values; Bar shows proportions; Graph shows recent trends."))
         hint.font = AppTheme.font(ofSize: 11)
         hint.textColor = .secondaryLabelColor
 
@@ -150,32 +151,32 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func generalCard() -> NSView {
-        let (card, stack) = card(title: "通用")
+        let (card, stack) = card(title: L("通用", "General"))
 
         let launchSwitch = NSSwitch()
         launchSwitch.state = settings.launchAtLoginEnabled ? .on : .off
         launchSwitch.target = self
         launchSwitch.action = #selector(launchAtLoginChanged)
         launchSwitch.identifier = NSUserInterfaceItemIdentifier("launchAtLoginSwitch")
-        let launchRow = row("开机自启", accessory: launchSwitch, identifier: "launchAtLoginRow")
+        let launchRow = row(L("开机自启", "Launch at Login"), accessory: launchSwitch, identifier: "launchAtLoginRow")
 
         let intervalPopup = NSPopUpButton()
         for seconds in [1, 2, 3, 5, 10] {
-            intervalPopup.addItem(withTitle: "\(seconds) 秒")
+            intervalPopup.addItem(withTitle: L("\(seconds) 秒", "\(seconds) s"))
             intervalPopup.lastItem?.representedObject = seconds
         }
         intervalPopup.selectItem(at: [1, 2, 3, 5, 10].firstIndex(of: settings.updateInterval) ?? 0)
         intervalPopup.target = self
         intervalPopup.action = #selector(updateIntervalChanged)
         intervalPopup.identifier = NSUserInterfaceItemIdentifier("updateIntervalPopup")
-        let intervalRow = row("采样间隔", accessory: intervalPopup, identifier: "updateIntervalRow")
+        let intervalRow = row(L("采样间隔", "Sampling Interval"), accessory: intervalPopup, identifier: "updateIntervalRow")
 
         let geoSwitch = NSSwitch()
         geoSwitch.state = settings.networkGeoLookupEnabled ? .on : .off
         geoSwitch.target = self
         geoSwitch.action = #selector(geoLookupChanged)
         geoSwitch.identifier = NSUserInterfaceItemIdentifier("geoLookupSwitch")
-        let geoRow = row("在线查询 IP 归属地", accessory: geoSwitch, identifier: "geoLookupRow")
+        let geoRow = row(L("在线查询 IP 归属地", "Look Up IP Location Online"), accessory: geoSwitch, identifier: "geoLookupRow")
 
         stack.addArrangedSubview(launchRow)
         stack.addArrangedSubview(intervalRow)
@@ -206,8 +207,8 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         stylePopup.action = #selector(widgetStyleChanged)
         stylePopup.identifier = NSUserInterfaceItemIdentifier("\(id)StylePopup")
 
-        let enableRow = row("在菜单栏显示", accessory: enableSwitch, identifier: "\(id)EnableRow")
-        let styleRow = row("Widget 样式", accessory: stylePopup, identifier: "\(id)StyleRow")
+        let enableRow = row(L("在菜单栏显示", "Show in Menu Bar"), accessory: enableSwitch, identifier: "\(id)EnableRow")
+        let styleRow = row(L("Widget 样式", "Widget Style"), accessory: stylePopup, identifier: "\(id)StyleRow")
         stack.addArrangedSubview(enableRow)
         stack.addArrangedSubview(styleRow)
         for rowView in [enableRow, styleRow] {

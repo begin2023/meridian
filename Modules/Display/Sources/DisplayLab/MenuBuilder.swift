@@ -1,5 +1,6 @@
 import AppKit
 import DisplayCore
+import MeridianLocalization
 
 /// Builds the status menu: one submenu per display with resolution and
 /// brightness controls, plus virtual screen and override sections as later
@@ -28,7 +29,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let displays = manager?.displays ?? []
 
         if displays.isEmpty {
-            let item = NSMenuItem(title: "未检测到显示器", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: L("未检测到显示器", "No Displays Detected"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
         }
@@ -89,12 +90,12 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let submenu = NSMenu()
         submenu.autoenablesItems = false
 
-        let hint = NSMenuItem(title: "写入系统级 HiDPI 模式表（需管理员授权）", action: nil, keyEquivalent: "")
+        let hint = NSMenuItem(title: L("写入系统级 HiDPI 模式表（需管理员授权）", "Writes a system HiDPI mode table (requires admin authorization)"), action: nil, keyEquivalent: "")
         hint.isEnabled = false
         submenu.addItem(hint)
 
         let installItem = NSMenuItem(
-            title: "  启用 HiDPI 覆盖…",
+            title: L("  启用 HiDPI 覆盖…", "  Enable HiDPI Override…"),
             action: #selector(AppDelegate.enableDisplayOverride(_:)),
             keyEquivalent: ""
         )
@@ -103,7 +104,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         submenu.addItem(installItem)
 
         let removeItem = NSMenuItem(
-            title: "  移除 HiDPI 覆盖",
+            title: L("  移除 HiDPI 覆盖", "  Remove HiDPI Override"),
             action: #selector(AppDelegate.removeDisplayOverride(_:)),
             keyEquivalent: ""
         )
@@ -111,18 +112,18 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         removeItem.representedObject = display.identifier
         submenu.addItem(removeItem)
 
-        let note = NSMenuItem(title: "  安装后需重插显示线或注销重登", action: nil, keyEquivalent: "")
+        let note = NSMenuItem(title: L("  安装后需重插显示线或注销重登", "  Reconnect the cable or log out after installing"), action: nil, keyEquivalent: "")
         note.isEnabled = false
         submenu.addItem(note)
 
-        let item = NSMenuItem(title: "显示器覆盖", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: L("显示器覆盖", "Display Override"), action: nil, keyEquivalent: "")
         item.submenu = submenu
         return item
     }
 
     private func makeHDRMenuItem(for display: DisplayInfo) -> NSMenuItem {
         guard HDRService.isAvailable, HDRService.supportsHDR(display.identifier) else {
-            let item = NSMenuItem(title: "HDR（此显示器不支持）", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: L("HDR（此显示器不支持）", "HDR (Not Supported by This Display)"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             return item
         }
@@ -130,12 +131,12 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         // whose CTA-861 block lacks PQ/HLG cannot show HDR10 content, so the
         // macOS-level toggle would flip state with no visible change.
         if let hdr = EDIDCapability.hdrInfo(for: display.identifier), !hdr.pqSupported, !hdr.hlgSupported {
-            let item = NSMenuItem(title: "HDR（面板无 PQ/HLG 能力，切换无可见效果）", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: L("HDR（面板无 PQ/HLG 能力，切换无可见效果）", "HDR (Panel Lacks PQ/HLG, No Visible Effect)"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             if let luminance = hdr.maxLuminanceCDm2 {
-                item.toolTip = "面板 EDID 仅声明 SDR gamma，未声明 HDR10 传输函数，声明的最大亮度约 \(luminance) 尼特（SDR 水平）。"
+                item.toolTip = L("面板 EDID 仅声明 SDR gamma，未声明 HDR10 传输函数，声明的最大亮度约 \(luminance) 尼特（SDR 水平）。", "The panel's EDID declares only SDR gamma, no HDR10 transfer function, and a peak luminance of about \(luminance) nits (SDR level).")
             } else {
-                item.toolTip = "面板 EDID 仅声明 SDR gamma，未声明 HDR10/HLG 传输函数。"
+                item.toolTip = L("面板 EDID 仅声明 SDR gamma，未声明 HDR10/HLG 传输函数。", "The panel's EDID declares only SDR gamma, with no HDR10/HLG transfer function.")
             }
             return item
         }
@@ -148,7 +149,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         item.target = appDelegate
         item.state = enabled ? .on : .off
         item.representedObject = display.identifier
-        item.toolTip = "在系统级 HDR 模式间切换；若点击后未生效，请用系统设置 → 显示器 → HDR 调整。"
+        item.toolTip = L("在系统级 HDR 模式间切换；若点击后未生效，请用系统设置 → 显示器 → HDR 调整。", "Switches the system HDR mode. If it doesn't take effect, use System Settings → Displays → HDR.")
         return item
     }
 
@@ -162,16 +163,16 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         if let session {
             if session.physicalDisplayID == display.identifier {
                 let item = NSMenuItem(
-                    title: "关闭上采样（恢复原生显示）",
+                    title: L("关闭上采样（恢复原生显示）", "Turn Off Upsampling (Restore Native)"),
                     action: #selector(AppDelegate.disableUpsample(_:)),
                     keyEquivalent: ""
                 )
                 item.target = appDelegate
                 item.state = .on
-                item.toolTip = "取消 \(session.spec.pixelWidth)×\(session.spec.pixelHeight)\(session.spec.hiDPI ? " HiDPI" : "") 虚拟屏镜像，面板回到原生分辨率。退出 DisplayLab 也会自动还原。"
+                item.toolTip = L("取消 \(session.spec.pixelWidth)×\(session.spec.pixelHeight)\(session.spec.hiDPI ? " HiDPI" : "") 虚拟屏镜像，面板回到原生分辨率。退出 DisplayLab 也会自动还原。", "Removes the \(session.spec.pixelWidth)×\(session.spec.pixelHeight)\(session.spec.hiDPI ? " HiDPI" : "") virtual display mirror and returns the panel to its native resolution. Quitting DisplayLab also restores it automatically.")
                 return item
             }
-            let item = NSMenuItem(title: "上采样已用于另一台显示器", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: L("上采样已用于另一台显示器", "Upsampling In Use on Another Display"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             return item
         }
@@ -183,24 +184,24 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let nativeHeight = info?["kCGDisplayPixelHeight"] as? Int ?? display.pixelHeight
 
         let moreSpaceItem = NSMenuItem(
-            title: "开启 \(nativeWidth * 2)×\(nativeHeight * 2) 上采样（更多空间）",
+            title: L("开启 \(nativeWidth * 2)×\(nativeHeight * 2) 上采样（更多空间）", "Upsample to \(nativeWidth * 2)×\(nativeHeight * 2) (More Space)"),
             action: #selector(AppDelegate.enableUpsample(_:)),
             keyEquivalent: ""
         )
         moreSpaceItem.target = appDelegate
         moreSpaceItem.representedObject = UpsampleSelection(displayIdentifier: display.identifier, hiDPI: false)
-        moreSpaceItem.toolTip = "桌面变成 \(nativeWidth * 2)×\(nativeHeight * 2) 逻辑像素（4 倍工作区，UI 明显变小），系统把 5K 画面实时缩到面板显示。此模式通过虚拟屏镜像实现软件上采样。注意：切换后个别应用的状态栏图标可能显示异常，重启对应应用即恢复。"
+        moreSpaceItem.toolTip = L("桌面变成 \(nativeWidth * 2)×\(nativeHeight * 2) 逻辑像素（4 倍工作区，UI 明显变小），系统把 5K 画面实时缩到面板显示。此模式通过虚拟屏镜像实现软件上采样。注意：切换后个别应用的状态栏图标可能显示异常，重启对应应用即恢复。", "The desktop becomes \(nativeWidth * 2)×\(nativeHeight * 2) logical pixels (4× the workspace, noticeably smaller UI), and the system scales the 5K image down to the panel in real time. This mode upsamples in software through a virtual display mirror. Note: after switching, some apps' menu bar icons may look wrong; relaunching the app fixes it.")
 
         let hidpiItem = NSMenuItem(
-            title: "开启 \(nativeWidth * 2)×\(nativeHeight * 2) 上采样（HiDPI 渲染）",
+            title: L("开启 \(nativeWidth * 2)×\(nativeHeight * 2) 上采样（HiDPI 渲染）", "Upsample to \(nativeWidth * 2)×\(nativeHeight * 2) (HiDPI Rendering)"),
             action: #selector(AppDelegate.enableUpsample(_:)),
             keyEquivalent: ""
         )
         hidpiItem.target = appDelegate
         hidpiItem.representedObject = UpsampleSelection(displayIdentifier: display.identifier, hiDPI: true)
-        hidpiItem.toolTip = "桌面布局和原生一样大，但按 2× 渲染再缩到面板，窗口文字更细腻。视觉变化较微妙。"
+        hidpiItem.toolTip = L("桌面布局和原生一样大，但按 2× 渲染再缩到面板，窗口文字更细腻。视觉变化较微妙。", "Keeps the native desktop layout but renders at 2× and scales down to the panel for crisper text. The visual change is subtle.")
 
-        let item = NSMenuItem(title: "上采样", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: L("上采样", "Upsampling"), action: nil, keyEquivalent: "")
         let submenu = NSMenu()
         submenu.autoenablesItems = false
         submenu.addItem(moreSpaceItem)
@@ -214,19 +215,19 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         submenu.autoenablesItems = false
 
         let restoreItem = NSMenuItem(
-            title: "恢复原生分辨率（最高刷新率）",
+            title: L("恢复原生分辨率（最高刷新率）", "Restore Native Resolution (Highest Refresh Rate)"),
             action: #selector(AppDelegate.restoreNativeMode(_:)),
             keyEquivalent: ""
         )
         restoreItem.target = appDelegate
         restoreItem.representedObject = display.identifier
-        restoreItem.toolTip = "切回面板原生分辨率。注意：切换渲染缩放后，个别应用的状态栏图标可能显示异常（macOS 的已知表现，与切换来源无关），重启对应应用即恢复。"
+        restoreItem.toolTip = L("切回面板原生分辨率。注意：切换渲染缩放后，个别应用的状态栏图标可能显示异常（macOS 的已知表现，与切换来源无关），重启对应应用即恢复。", "Switches back to the panel's native resolution. Note: after changing render scaling, some apps' menu bar icons may look wrong (a known macOS behavior, regardless of what made the switch); relaunching the app fixes it.")
         submenu.addItem(restoreItem)
         submenu.addItem(.separator())
 
         let modes = Self.usableModes(for: display)
         if modes.isEmpty {
-            let item = NSMenuItem(title: "无可用模式", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: L("无可用模式", "No Available Modes"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             submenu.addItem(item)
         }
@@ -240,7 +241,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             submenu.addItem(item)
         }
 
-        let item = NSMenuItem(title: "分辨率", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: L("分辨率", "Resolution"), action: nil, keyEquivalent: "")
         item.submenu = submenu
         return item
     }
@@ -287,7 +288,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     private func makeBrightnessMenuItem(for display: DisplayInfo) -> NSMenuItem {
         let manager = displayManager
         guard let controller = manager?.brightnessController(for: display.identifier) else {
-            let item = NSMenuItem(title: "亮度（此显示器不支持调节）", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: L("亮度（此显示器不支持调节）", "Brightness (Not Adjustable on This Display)"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             return item
         }
@@ -299,7 +300,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             action: #selector(AppDelegate.brightnessSliderChanged(_:))
         )
 
-        let item = NSMenuItem(title: "亮度", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: L("亮度", "Brightness"), action: nil, keyEquivalent: "")
         item.view = row
         item.isEnabled = controller.backendKind != .unavailable
         return item
@@ -311,13 +312,13 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let submenu = NSMenu()
         submenu.autoenablesItems = false
 
-        let createItem = NSMenuItem(title: "创建虚拟屏幕", action: nil, keyEquivalent: "")
+        let createItem = NSMenuItem(title: L("创建虚拟屏幕", "Create Virtual Display"), action: nil, keyEquivalent: "")
         createItem.isEnabled = false
         submenu.addItem(createItem)
 
         for spec in VirtualDisplayController.Spec.presets {
             let item = NSMenuItem(
-                title: "  \(spec.name)（\(spec.pixelWidth)×\(spec.pixelHeight) HiDPI）",
+                title: L("  \(spec.name)（\(spec.pixelWidth)×\(spec.pixelHeight) HiDPI）", "  \(spec.name) (\(spec.pixelWidth)×\(spec.pixelHeight) HiDPI)"),
                 action: #selector(AppDelegate.createVirtualScreen(_:)),
                 keyEquivalent: ""
             )
@@ -329,13 +330,13 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
         let active = appDelegate?.virtualDisplayController.activeSpecs ?? []
         if !active.isEmpty {
             submenu.addItem(.separator())
-            let connectedItem = NSMenuItem(title: "已连接", action: nil, keyEquivalent: "")
+            let connectedItem = NSMenuItem(title: L("已连接", "Connected"), action: nil, keyEquivalent: "")
             connectedItem.isEnabled = false
             submenu.addItem(connectedItem)
 
             for (id, spec) in active {
                 let item = NSMenuItem(
-                    title: "  断开 \(spec.name)（\(spec.pixelWidth)×\(spec.pixelHeight)）",
+                    title: L("  断开 \(spec.name)（\(spec.pixelWidth)×\(spec.pixelHeight)）", "  Disconnect \(spec.name) (\(spec.pixelWidth)×\(spec.pixelHeight))"),
                     action: #selector(AppDelegate.disconnectVirtualScreen(_:)),
                     keyEquivalent: ""
                 )
@@ -345,7 +346,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             }
 
             let disconnectAllItem = NSMenuItem(
-                title: "  全部断开",
+                title: L("  全部断开", "  Disconnect All"),
                 action: #selector(AppDelegate.disconnectAllVirtualScreens),
                 keyEquivalent: ""
             )
@@ -353,7 +354,7 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
             submenu.addItem(disconnectAllItem)
         }
 
-        let item = NSMenuItem(title: "虚拟屏幕", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: L("虚拟屏幕", "Virtual Displays"), action: nil, keyEquivalent: "")
         item.submenu = submenu
         return item
     }
@@ -361,13 +362,13 @@ final class MenuBuilder: NSObject, NSMenuDelegate {
     // MARK: - Common items
 
     private func makePreferencesItem() -> NSMenuItem {
-        let item = NSMenuItem(title: "偏好设置…", action: #selector(AppDelegate.showPreferences), keyEquivalent: ",")
+        let item = NSMenuItem(title: L("偏好设置…", "Settings…"), action: #selector(AppDelegate.showPreferences), keyEquivalent: ",")
         item.target = appDelegate
         return item
     }
 
     private func makeQuitItem() -> NSMenuItem {
-        let item = NSMenuItem(title: "退出 DisplayLab", action: #selector(AppDelegate.quitApplication), keyEquivalent: "q")
+        let item = NSMenuItem(title: L("退出 DisplayLab", "Quit DisplayLab"), action: #selector(AppDelegate.quitApplication), keyEquivalent: "q")
         item.target = appDelegate
         return item
     }
@@ -397,7 +398,7 @@ final class BrightnessSliderRow: NSView {
 
         super.init(frame: NSRect(x: 0, y: 0, width: 260, height: 28))
 
-        let titleLabel = NSTextField(labelWithString: "亮度")
+        let titleLabel = NSTextField(labelWithString: L("亮度", "Brightness"))
         titleLabel.font = AppTheme.font(ofSize: 12, weight: .medium)
         titleLabel.textColor = AppTheme.primaryText
         titleLabel.translatesAutoresizingMaskIntoConstraints = false

@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import ImageIO
+import MeridianLocalization
 import UniformTypeIdentifiers
 
 enum GIFEncoderError: LocalizedError {
@@ -11,11 +12,11 @@ enum GIFEncoderError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .destinationCreationFailed:
-            return "无法创建 GIF 文件。"
+            return L("无法创建 GIF 文件。", "Couldn’t create the GIF file.")
         case .encodeFailed:
-            return "GIF 编码失败。"
+            return L("GIF 编码失败。", "GIF encoding failed.")
         case .noFrames:
-            return "没有捕获到可写入 GIF 的帧。"
+            return L("没有捕获到可写入 GIF 的帧。", "No frames were captured for the GIF.")
         }
     }
 }

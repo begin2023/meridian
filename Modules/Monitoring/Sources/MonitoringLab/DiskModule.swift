@@ -1,6 +1,7 @@
 import AppKit
 import DiskArbitration
 import IOKit
+import MeridianLocalization
 
 // 磁盘模块:挂载卷用量 + 全盘读写吞吐(IOKit 差分,不可用时优雅降级)。
 final class DiskModule: BaseModule {
@@ -37,7 +38,7 @@ final class DiskModule: BaseModule {
     private var diskProcessListView: DiskProcessListView?
 
     init() {
-        super.init(id: "disk", displayName: "磁盘")
+        super.init(id: "disk", displayName: L("磁盘", "Disk"))
     }
 
     override func sample() {
@@ -172,7 +173,7 @@ final class DiskModule: BaseModule {
             history: history
         ))
 
-        valueLabel?.stringValue = rootVolume.map { "\(Format.percent($0.usedFraction * 100)) 已用" } ?? "无可用卷"
+        valueLabel?.stringValue = rootVolume.map { L("\(Format.percent($0.usedFraction * 100)) 已用", "\(Format.percent($0.usedFraction * 100)) used") } ?? L("无可用卷", "No volumes available")
         graphView?.values = history
 
         if throughputRows.count == 2 {
@@ -252,7 +253,7 @@ final class DiskModule: BaseModule {
         header.orientation = .horizontal
         header.alignment = .firstBaseline
         header.spacing = 8
-        let titleLabel = NSTextField(labelWithString: "磁盘")
+        let titleLabel = NSTextField(labelWithString: L("磁盘", "Disk"))
         titleLabel.font = AppTheme.font(ofSize: 15, weight: .semibold)
         titleLabel.textColor = AppTheme.primaryText
         header.addArrangedSubview(titleLabel)
@@ -268,13 +269,13 @@ final class DiskModule: BaseModule {
         header.translatesAutoresizingMaskIntoConstraints = false
 
         // 根卷大数字
-        let bigValue = NSTextField(labelWithString: "0% 已用")
+        let bigValue = NSTextField(labelWithString: L("0% 已用", "0% used"))
         bigValue.font = AppTheme.font(ofSize: 30, weight: .semibold)
         bigValue.textColor = AppTheme.primaryText
         bigValue.identifier = NSUserInterfaceItemIdentifier("diskBigValue")
 
         // 各卷用量
-        let volumesTitle = NSTextField(labelWithString: "挂载的卷")
+        let volumesTitle = NSTextField(labelWithString: L("挂载的卷", "Mounted Volumes"))
         volumesTitle.font = AppTheme.font(ofSize: 11, weight: .medium)
         volumesTitle.textColor = AppTheme.secondaryText
         let volumeStack = NSStackView()
@@ -284,11 +285,11 @@ final class DiskModule: BaseModule {
         self.volumeStack = volumeStack
 
         // 读写吞吐
-        let throughputTitle = NSTextField(labelWithString: "读写吞吐")
+        let throughputTitle = NSTextField(labelWithString: L("读写吞吐", "Read/Write Throughput"))
         throughputTitle.font = AppTheme.font(ofSize: 11, weight: .medium)
         throughputTitle.textColor = AppTheme.secondaryText
-        let readRow = LegendRowView(name: "读取", color: AppTheme.accent)
-        let writeRow = LegendRowView(name: "写入", color: NSColor(calibratedRed: 0.35, green: 0.62, blue: 1.0, alpha: 1))
+        let readRow = LegendRowView(name: L("读取", "Read"), color: AppTheme.accent)
+        let writeRow = LegendRowView(name: L("写入", "Write"), color: NSColor(calibratedRed: 0.35, green: 0.62, blue: 1.0, alpha: 1))
         let legendStack = NSStackView(views: [readRow, writeRow])
         legendStack.orientation = .vertical
         legendStack.spacing = 2
@@ -300,7 +301,7 @@ final class DiskModule: BaseModule {
         graph.heightAnchor.constraint(equalToConstant: 48).isActive = true
 
         // 高占用进程(读/写速率)
-        let processTitle = NSTextField(labelWithString: "高占用进程")
+        let processTitle = NSTextField(labelWithString: L("高占用进程", "Top Processes"))
         processTitle.font = AppTheme.font(ofSize: 11, weight: .medium)
         processTitle.textColor = AppTheme.secondaryText
         let diskProcessList = DiskProcessListView(title: "", limit: 5)

@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 import SwiftUI
 
 @MainActor
@@ -67,22 +68,22 @@ struct MainView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: Binding(get: { Optional(navigation.page) }, commit: { if let page = $0 { navigation.page = page } })) {
-                Label("概览", systemImage: "square.grid.2x2").tag(Page.overview)
-                Section("功能") {
+                Label(L("概览", "Overview"), systemImage: "square.grid.2x2").tag(Page.overview)
+                Section(L("功能", "Features")) {
                     ForEach(Feature.allCases) { feature in
                         HStack(spacing: 8) {
                             FeatureBadge(feature: feature, size: 20)
                             Text(feature.title)
                             Spacer()
                             if !preferences.isEnabled(feature) {
-                                Text("已关闭").font(.system(size: 10)).foregroundStyle(.tertiary)
+                                Text(L("已关闭", "Off")).font(.system(size: 10)).foregroundStyle(.tertiary)
                             }
                         }
                         .tag(Page.feature(feature))
                     }
                 }
                 Section {
-                    Label("通用", systemImage: "gearshape").tag(Page.general)
+                    Label(L("通用", "General"), systemImage: "gearshape").tag(Page.general)
                 }
             }
             .listStyle(.sidebar)
@@ -97,6 +98,8 @@ struct MainView: View {
             }
             .scrollEdgeEffectStyle(.soft, for: .top)
         }
+        // 切换语言后整棵视图重建，所有 L(...) 文案重新求值。
+        .id(preferences.languageRevision)
         .frame(minWidth: 780, minHeight: 520)
     }
 
@@ -137,20 +140,20 @@ struct FeaturePage<Content: View>: View {
                     Text(feature.summary).font(.system(size: 12)).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Toggle("启用", isOn: Binding(get: { preferences.isEnabled(feature) },
+                Toggle(L("启用", "Enable"), isOn: Binding(get: { preferences.isEnabled(feature) },
                                             commit: { preferences.setEnabled(feature, $0) }))
                     .toggleStyle(.switch)
                     .labelsHidden()
-                    .help(preferences.isEnabled(feature) ? "关闭此功能（停止其后台活动）" : "启用此功能")
+                    .help(preferences.isEnabled(feature) ? L("关闭此功能（停止其后台活动）", "Turn off this feature (stops its background activity)") : L("启用此功能", "Turn on this feature"))
             }
             if preferences.isEnabled(feature) {
                 content
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "power").font(.system(size: 28)).foregroundStyle(.tertiary)
-                    Text("\(feature.title)已关闭").font(.headline)
-                    Text("关闭后不再占用后台资源，也不会出现在菜单栏面板里。").font(.callout).foregroundStyle(.secondary)
-                    Button("启用") { preferences.setEnabled(feature, true) }.buttonStyle(.borderedProminent)
+                    Text(L("\(feature.title)已关闭", "\(feature.title) Is Off")).font(.headline)
+                    Text(L("关闭后不再占用后台资源，也不会出现在菜单栏面板里。", "While off, it uses no background resources and doesn't appear in the menu bar panel.")).font(.callout).foregroundStyle(.secondary)
+                    Button(L("启用", "Enable")) { preferences.setEnabled(feature, true) }.buttonStyle(.borderedProminent)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 60)

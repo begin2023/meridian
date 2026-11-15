@@ -1,8 +1,18 @@
 import AppKit
+import MeridianLocalization
 
 private final class PinPanel: NSPanel {
+    var onQuitShortcut: (() -> Void)?
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.isQuitShortcut, let onQuitShortcut {
+            onQuitShortcut()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }
 
 private final class PinImageView: NSView {
@@ -353,7 +363,8 @@ final class PinWindowController: NSWindowController, NSWindowDelegate {
         super.init(window: panel)
         panel.delegate = self
         imageView.onClose = { [weak self] in self?.closePin() }
-        imageView.toolTip = "双击或按 Esc 关闭 · 拖动移动 · 滚轮缩放 · 拖动边缘调整大小"
+        panel.onQuitShortcut = { [weak self] in self?.closePin() }
+        imageView.toolTip = L("双击或按 Esc 关闭 · 拖动移动 · 滚轮缩放 · 拖动边缘调整大小", "Double-click or press Esc to close · Drag to move · Scroll to zoom · Drag edges to resize")
         imageView.onContextMenu = { [weak self] event in
             self?.showContextMenu(event)
         }
@@ -448,19 +459,19 @@ final class PinWindowController: NSWindowController, NSWindowDelegate {
 
     private func showContextMenu(_ event: NSEvent) {
         let menu = NSMenu()
-        menu.addItem(item("复制", action: #selector(copyAction)))
-        menu.addItem(item("保存…", action: #selector(saveAction)))
-        menu.addItem(item("快速保存", action: #selector(quickSaveAction)))
-        menu.addItem(item("编辑标注", action: #selector(editAction)))
-        menu.addItem(item("提取文字", action: #selector(ocrAction)))
+        menu.addItem(item(L("复制", "Copy"), action: #selector(copyAction)))
+        menu.addItem(item(L("保存…", "Save…"), action: #selector(saveAction)))
+        menu.addItem(item(L("快速保存", "Quick Save"), action: #selector(quickSaveAction)))
+        menu.addItem(item(L("编辑标注", "Annotate"), action: #selector(editAction)))
+        menu.addItem(item(L("提取文字", "Extract Text"), action: #selector(ocrAction)))
         menu.addItem(.separator())
 
-        let pinnedItem = item("始终置顶", action: #selector(togglePinned))
+        let pinnedItem = item(L("始终置顶", "Keep on Top"), action: #selector(togglePinned))
         pinnedItem.state = pinned ? .on : .off
         menu.addItem(pinnedItem)
 
         menu.addItem(.separator())
-        menu.addItem(item("关闭", action: #selector(closeAction)))
+        menu.addItem(item(L("关闭", "Close"), action: #selector(closeAction)))
         NSMenu.popUpContextMenu(menu, with: event, for: imageView)
     }
 

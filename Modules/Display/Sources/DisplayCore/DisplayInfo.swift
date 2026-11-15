@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import DisplayPrivate
+import MeridianLocalization
 
 /// One selectable display mode. `cgsIndex` refers to the private CGS mode
 /// table; modes discovered through the public API carry nil and switch through
@@ -90,7 +91,7 @@ public enum DisplayEnumerationError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unresolvedName(let identifier):
-            return "无法确定显示器 \(identifier) 的名称。"
+            return L("无法确定显示器 \(identifier) 的名称。", "Couldn't determine the name of display \(identifier).")
         }
     }
 }
@@ -173,7 +174,7 @@ public enum DisplayEnumerator {
             }
         }
 
-        return "显示器 \(display)"
+        return L("显示器 \(display)", "Display \(display)")
     }
 }
 

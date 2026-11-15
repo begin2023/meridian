@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     enum HotKeyKind {
@@ -20,7 +21,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     private let gifWidthPopup = NSPopUpButton()
     private let gifFPSPopup = NSPopUpButton()
     private let copyFileCheckbox = NSButton(
-        checkboxWithTitle: "复制图片时同时写入 PNG 文件",
+        checkboxWithTitle: L("复制图片时同时写入 PNG 文件", "Also write a PNG file when copying"),
         target: nil,
         action: nil
     )
@@ -42,7 +43,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "偏好设置"
+        window.title = L("偏好设置", "Settings")
         window.isReleasedWhenClosed = false
         window.center()
         self.init(window: window)
@@ -92,9 +93,9 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
 
         copyFileCheckbox.target = self
         copyFileCheckbox.action = #selector(copyFileChanged)
-        launchCheckbox.title = "登录后自动启动 \(appDisplayName)"
+        launchCheckbox.title = L("登录后自动启动 \(appDisplayName)", "Launch \(appDisplayName) at Login")
 
-        configurePopup(screenshotScalePopup, titles: ["原始分辨率", "75%", "50%", "25%"])
+        configurePopup(screenshotScalePopup, titles: [L("原始分辨率", "Original"), "75%", "50%", "25%"])
         screenshotScalePopup.target = self
         screenshotScalePopup.action = #selector(screenshotScaleChanged)
         configurePopup(gifWidthPopup, titles: ["480 px", "640 px", "960 px", "1280 px"])
@@ -110,53 +111,53 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         let header = makeHeader()
         let hotKeyCard = makeCard(rows: [
             makeRow(
-                title: "截图",
-                subtitle: "区域截图、标注、钉图与 OCR",
+                title: L("截图", "Screenshot"),
+                subtitle: L("区域截图、标注、钉图与 OCR", "Capture area, annotate, pin and OCR"),
                 accessory: captureRecorder
             ),
             makeRow(
-                title: "录制 GIF",
-                subtitle: "选择区域后开始录制",
+                title: L("录制 GIF", "Record GIF"),
+                subtitle: L("选择区域后开始录制", "Select an area, then start recording"),
                 accessory: gifRecorder
             ),
         ])
-        let hotKeyHint = makeHint("点击按钮后直接按下新的组合键，Esc 取消录制。")
+        let hotKeyHint = makeHint(L("点击按钮后直接按下新的组合键，Esc 取消录制。", "Click a button, then press the new key combination. Esc cancels."))
         var outputRows: [NSView] = [
-            makeRow(title: "截图分辨率", subtitle: "相对屏幕原始像素", accessory: screenshotScalePopup),
-            makeRow(title: "GIF 输出宽度", subtitle: "高度按比例缩放", accessory: gifWidthPopup),
-            makeRow(title: "GIF 帧率", subtitle: "录制与播放帧率", accessory: gifFPSPopup),
+            makeRow(title: L("截图分辨率", "Screenshot Resolution"), subtitle: L("相对屏幕原始像素", "Relative to native screen pixels"), accessory: screenshotScalePopup),
+            makeRow(title: L("GIF 输出宽度", "GIF Output Width"), subtitle: L("高度按比例缩放", "Height scales proportionally"), accessory: gifWidthPopup),
+            makeRow(title: L("GIF 帧率", "GIF Frame Rate"), subtitle: L("录制与播放帧率", "Recording and playback frame rate"), accessory: gifFPSPopup),
             makeRow(
-                title: "快速保存目录",
-                subtitle: "快速保存与 GIF 落盘的位置",
+                title: L("快速保存目录", "Quick Save Folder"),
+                subtitle: L("快速保存与 GIF 落盘的位置", "Where quick saves and GIFs are written"),
                 accessory: makeFolderAccessory()
             ),
             makeToggleRow(
                 copyFileCheckbox,
-                subtitle: "剪贴板中同时包含图片和 PNG 文件"
+                subtitle: L("剪贴板中同时包含图片和 PNG 文件", "The clipboard holds both the image and a PNG file")
             ),
         ]
         if allowsLaunchAtLogin {
             outputRows.append(makeToggleRow(
                 launchCheckbox,
-                subtitle: "随 macOS 登录自动运行"
+                subtitle: L("随 macOS 登录自动运行", "Start automatically when you log in to macOS")
             ))
         }
         let outputCard = makeCard(rows: outputRows)
         let ocrCard = makeCard(rows: [makeOCRRow()])
-        let historyButton = NSButton(title: "管理截图历史", target: self, action: #selector(openHistory))
+        let historyButton = NSButton(title: L("管理截图历史", "Manage History"), target: self, action: #selector(openHistory))
         historyButton.bezelStyle = .rounded
         historyButton.font = AppTheme.font(ofSize: 12)
         let historyCard = makeCard(rows: [makeRow(
-            title: "截图历史",
-            subtitle: "默认最近 10 张，可按时间筛选并调整保留数量（1–100 张）",
+            title: L("截图历史", "Screenshot History"),
+            subtitle: L("默认最近 10 张，可按时间筛选并调整保留数量（1–100 张）", "Keeps the last 10 by default; filter by date and adjust retention (1–100)"),
             accessory: historyButton
-        ), makeHint("图片存于本地磁盘；缩略图和当前预览会增加少量内存占用。")])
+        ), makeHint(L("图片存于本地磁盘；缩略图和当前预览会增加少量内存占用。", "Images are stored on the local disk; thumbnails and the current preview use a little memory."))])
         let footer = makeFooter()
 
-        let sectionHotKeys = makeSectionLabel("快捷键")
-        let sectionOutput = makeSectionLabel("截图与输出")
-        let sectionOCR = makeSectionLabel("文字识别")
-        let sectionHistory = makeSectionLabel("截图历史")
+        let sectionHotKeys = makeSectionLabel(L("快捷键", "Shortcuts"))
+        let sectionOutput = makeSectionLabel(L("截图与输出", "Capture and Output"))
+        let sectionOCR = makeSectionLabel(L("文字识别", "Text Recognition"))
+        let sectionHistory = makeSectionLabel(L("截图历史", "Screenshot History"))
 
         let stack = NSStackView(views: [
             header,
@@ -217,7 +218,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
 
         let title = NSTextField(labelWithString: appDisplayName)
         title.font = AppTheme.font(ofSize: 26, weight: .bold)
-        let subtitle = NSTextField(labelWithString: "截图 · 标注 · 钉图 · 文字识别")
+        let subtitle = NSTextField(labelWithString: L("截图 · 标注 · 钉图 · 文字识别", "Capture · Annotate · Pin · Extract Text"))
         subtitle.font = AppTheme.font(ofSize: 13, weight: .medium)
         subtitle.textColor = .secondaryLabelColor
 
@@ -360,7 +361,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             .isActive = true
 
         let chooseButton = NSButton(
-            title: "选择…",
+            title: L("选择…", "Choose…"),
             target: self,
             action: #selector(chooseFolder)
         )
@@ -384,10 +385,10 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
             icon.heightAnchor.constraint(equalToConstant: 24),
         ])
 
-        let title = NSTextField(labelWithString: "自动检测语言")
+        let title = NSTextField(labelWithString: L("自动检测语言", "Automatic Language Detection"))
         title.font = AppTheme.font(ofSize: 13, weight: .semibold)
         let subtitle = NSTextField(
-            wrappingLabelWithString: "使用 macOS Vision 自动识别简体中文、繁体中文、英文等语言，无需手动选择。"
+            wrappingLabelWithString: L("使用 macOS Vision 自动识别简体中文、繁体中文、英文等语言，无需手动选择。", "macOS Vision detects Simplified Chinese, Traditional Chinese, English and more automatically; no manual selection needed.")
         )
         subtitle.font = AppTheme.font(ofSize: 11)
         subtitle.textColor = .secondaryLabelColor
@@ -417,7 +418,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         )
         icon.contentTintColor = .tertiaryLabelColor
 
-        let label = NSTextField(labelWithString: "所有设置都会即时保存")
+        let label = NSTextField(labelWithString: L("所有设置都会即时保存", "All settings are saved instantly"))
         label.font = AppTheme.font(ofSize: 11)
         label.textColor = .tertiaryLabelColor
 
@@ -463,7 +464,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
                     domain: "ScreenshotLab.HotKey",
                     code: 2,
                     userInfo: [
-                        NSLocalizedDescriptionKey: "两个快捷键不能相同，请换一个。",
+                        NSLocalizedDescriptionKey: L("两个快捷键不能相同，请换一个。", "The two shortcuts can’t be the same. Choose a different one."),
                     ]
                 )
             )

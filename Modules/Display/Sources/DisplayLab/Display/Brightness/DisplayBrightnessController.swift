@@ -2,6 +2,7 @@ import AppKit
 import BrightnessMapping
 import CoreGraphics
 import DisplayCore
+import MeridianLocalization
 
 /// Per-display brightness facade. Picks a hardware backend (DDC for external
 /// panels, DisplayServices for Apple displays), layers gamma-based software
@@ -28,9 +29,9 @@ final class DisplayBrightnessController {
         var errorDescription: String? {
             switch self {
             case .backendUnavailable:
-                return "此显示器不支持亮度调节。"
+                return L("此显示器不支持亮度调节。", "This display doesn't support brightness adjustment.")
             case .hardwareWriteFailed:
-                return "硬件亮度写入失败。"
+                return L("硬件亮度写入失败。", "Hardware brightness write failed.")
             }
         }
     }

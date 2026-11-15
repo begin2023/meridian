@@ -1,5 +1,6 @@
 import AppKit
 import CoreFoundation
+import MeridianLocalization
 
 /// Public lifecycle and JSON-command facade for the screen agent.
 ///
@@ -200,13 +201,13 @@ public final class DisplayLabModule {
 
     private func makeReadOnlyMenu() -> NSMenu {
         let menu = NSMenu()
-        let title = NSMenuItem(title: "显示器（只读）", action: nil, keyEquivalent: "")
+        let title = NSMenuItem(title: L("显示器（只读）", "Displays (Read-Only)"), action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
 
         let displays = summary()["displays"] as? [[String: Any]] ?? []
         for display in displays {
-            let name = display["name"] as? String ?? "显示器"
+            let name = display["name"] as? String ?? L("显示器", "Display")
             let width = display["pixelWidth"] as? Int ?? 0
             let height = display["pixelHeight"] as? Int ?? 0
             let item = NSMenuItem(
@@ -217,19 +218,19 @@ public final class DisplayLabModule {
             item.isEnabled = false
             if let mode = display["currentMode"] as? [String: Any],
                let label = mode["label"] as? String {
-                item.toolTip = "当前模式：\(label)"
+                item.toolTip = L("当前模式：\(label)", "Current mode: \(label)")
             }
             menu.addItem(item)
         }
         if displays.isEmpty {
-            let item = NSMenuItem(title: "未检测到显示器", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: L("未检测到显示器", "No Displays Detected"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             menu.addItem(item)
         }
 
         menu.addItem(.separator())
         let policy = NSMenuItem(
-            title: "硬件写入已由安全策略禁用",
+            title: L("硬件写入已由安全策略禁用", "Hardware Writes Disabled by Security Policy"),
             action: nil,
             keyEquivalent: ""
         )
@@ -237,7 +238,7 @@ public final class DisplayLabModule {
         menu.addItem(policy)
 
         let preferences = NSMenuItem(
-            title: "打开统一设置…",
+            title: L("打开统一设置…", "Open Settings…"),
             action: #selector(AppDelegate.showPreferences),
             keyEquivalent: ""
         )

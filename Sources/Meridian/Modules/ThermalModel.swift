@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import FanControlLabKit
+import MeridianLocalization
 
 /// 风扇与温度：读取走用户态 SMC，控制由已安装的 root 守护进程执行。
 @MainActor
@@ -35,7 +36,7 @@ final class ThermalModel: ObservableObject {
         guard !running else { return }
         engine.start()
         running = engine.isRunning
-        if let error = engine.openError { message = "无法读取 SMC：\(error)" }
+        if let error = engine.openError { message = L("无法读取 SMC：\(error)", "Couldn't read SMC: \(error)") }
         refreshDaemonState()
     }
 
@@ -68,10 +69,10 @@ final class ThermalModel: ObservableObject {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .automatic: return "自动"
-            case .curve: return "温控"
-            case .fixed: return "固定"
-            case .full: return "全速"
+            case .automatic: return L("自动", "Auto")
+            case .curve: return L("温控", "Curve")
+            case .fixed: return L("固定", "Fixed")
+            case .full: return L("全速", "Full Speed")
             }
         }
         var symbol: String {
@@ -131,8 +132,8 @@ final class ThermalModel: ObservableObject {
         helperBusy = true
         Task {
             defer { helperBusy = false; refreshDaemonState() }
-            do { try await engine.installDaemon(); message = "风扇控制服务已安装，请重新选择控制模式。" }
-            catch { message = "安装风扇控制服务失败：\(error.localizedDescription)" }
+            do { try await engine.installDaemon(); message = L("风扇控制服务已安装，请重新选择控制模式。", "Fan control service installed. Choose a control mode again.") }
+            catch { message = L("安装风扇控制服务失败：\(error.localizedDescription)", "Couldn't install the fan control service: \(error.localizedDescription)") }
         }
     }
 
@@ -141,8 +142,8 @@ final class ThermalModel: ObservableObject {
         helperBusy = true
         Task {
             defer { helperBusy = false; refreshDaemonState() }
-            do { try await engine.uninstallDaemon(); message = "风扇控制服务已移除，风扇由系统自动控制。" }
-            catch { message = "移除失败：\(error.localizedDescription)" }
+            do { try await engine.uninstallDaemon(); message = L("风扇控制服务已移除，风扇由系统自动控制。", "Fan control service removed. Fans are now controlled by the system.") }
+            catch { message = L("移除失败：\(error.localizedDescription)", "Couldn't remove: \(error.localizedDescription)") }
         }
     }
 

@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import IOKit.hid
+import MeridianLocalization
 
 /// 各功能模块通过 MERIDIAN_MODULE_SUITE 环境变量选择自己的 UserDefaults 域，
 /// 在模块单例首次创建时读取。这里在创建期间临时设置，保证五个模块的键互不覆盖。
@@ -26,17 +27,17 @@ enum Permission: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .screenRecording: return "屏幕录制"
-        case .accessibility: return "辅助功能"
-        case .inputMonitoring: return "输入监控"
+        case .screenRecording: return L("屏幕录制", "Screen Recording")
+        case .accessibility: return L("辅助功能", "Accessibility")
+        case .inputMonitoring: return L("输入监控", "Input Monitoring")
         }
     }
 
     var purpose: String {
         switch self {
-        case .screenRecording: return "截图、识字与 GIF 录制需要读取屏幕内容"
-        case .accessibility: return "平滑滚动与方向反转需要拦截滚轮事件"
-        case .inputMonitoring: return "可选：用 F1/F2 调节外接显示器亮度"
+        case .screenRecording: return L("截图、识字与 GIF 录制需要读取屏幕内容", "Screenshots, text recognition, and GIF recording need to read screen content")
+        case .accessibility: return L("平滑滚动与方向反转需要拦截滚轮事件", "Smooth scrolling and reverse direction need to intercept scroll wheel events")
+        case .inputMonitoring: return L("可选：用 F1/F2 调节外接显示器亮度", "Optional: adjust external display brightness with F1/F2")
         }
     }
 
@@ -50,8 +51,8 @@ enum Permission: String, CaseIterable, Identifiable {
 
     var settingsTitle: String {
         switch self {
-        case .accessibility: return "设备控制设置"
-        default: return "系统设置"
+        case .accessibility: return L("设备控制设置", "Device Control Settings")
+        default: return L("系统设置", "System Settings")
         }
     }
 

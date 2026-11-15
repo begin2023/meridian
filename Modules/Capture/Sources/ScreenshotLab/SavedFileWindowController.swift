@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 final class SavedFileWindowController: NSWindowController {
     private let fileURL: URL
@@ -13,7 +14,7 @@ final class SavedFileWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = fileURL.pathExtension.lowercased() == "gif" ? "GIF 已保存" : "截图已保存"
+        window.title = fileURL.pathExtension.lowercased() == "gif" ? L("GIF 已保存", "GIF Saved") : L("截图已保存", "Screenshot Saved")
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
@@ -42,7 +43,7 @@ final class SavedFileWindowController: NSWindowController {
     private func buildInterface() {
         guard let contentView = window?.contentView else { return }
 
-        let heading = NSTextField(labelWithString: fileURL.pathExtension.lowercased() == "gif" ? "GIF 已保存" : "截图已保存")
+        let heading = NSTextField(labelWithString: fileURL.pathExtension.lowercased() == "gif" ? L("GIF 已保存", "GIF Saved") : L("截图已保存", "Screenshot Saved"))
         heading.font = AppTheme.font(ofSize: 18, weight: .semibold)
 
         pathLabel.stringValue = fileURL.lastPathComponent
@@ -70,17 +71,17 @@ final class SavedFileWindowController: NSWindowController {
         ])
 
         let playButton = NSButton(
-            title: fileURL.pathExtension.lowercased() == "gif" ? "播放 GIF" : "查看截图",
+            title: fileURL.pathExtension.lowercased() == "gif" ? L("播放 GIF", "Play GIF") : L("查看截图", "View Screenshot"),
             target: self,
             action: #selector(openFile)
         )
         playButton.bezelStyle = .rounded
         playButton.keyEquivalent = "\r"
 
-        let finderButton = NSButton(title: "在 Finder 中显示", target: self, action: #selector(showInFinder))
+        let finderButton = NSButton(title: L("在 Finder 中显示", "Show in Finder"), target: self, action: #selector(showInFinder))
         finderButton.bezelStyle = .rounded
 
-        let copyButton = NSButton(title: "复制文件", target: self, action: #selector(copyFile))
+        let copyButton = NSButton(title: L("复制文件", "Copy File"), target: self, action: #selector(copyFile))
         copyButton.bezelStyle = .rounded
 
         let actions = NSStackView(views: [copyButton, finderButton, playButton])

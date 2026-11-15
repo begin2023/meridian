@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import MeridianLocalization
 
 /// 全局快捷键对应的动作。由宿主统一注册，执行交给各功能。
 enum HotKeyAction: String, CaseIterable, Identifiable {
@@ -14,23 +15,23 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .capture: return "截图"
-        case .ocr: return "截图识字"
-        case .pin: return "截图并贴图"
-        case .gif: return "录制 GIF"
-        case .toggleScroll: return "暂停 / 恢复滚动增强"
-        case .controlCenter: return "打开控制中心"
+        case .capture: return L("截图", "Capture Area")
+        case .ocr: return L("截图识字", "Capture Text")
+        case .pin: return L("截图并贴图", "Capture & Pin")
+        case .gif: return L("录制 GIF", "Record GIF")
+        case .toggleScroll: return L("暂停 / 恢复滚动增强", "Pause / Resume Scroll Enhancement")
+        case .controlCenter: return L("打开控制中心", "Open Control Center")
         }
     }
 
     var detail: String {
         switch self {
-        case .capture: return "拖选区域后标注、复制、保存或贴图"
-        case .ocr: return "松开鼠标即识别选区文字"
-        case .pin: return "松开鼠标即把选区钉在屏幕上"
-        case .gif: return "选择区域开始录制，再按一次停止"
-        case .toggleScroll: return "临时停用，不改变设置"
-        case .controlCenter: return "在菜单栏弹出快捷面板"
+        case .capture: return L("拖选区域后标注、复制、保存或贴图", "Drag to select an area, then annotate, copy, save, or pin")
+        case .ocr: return L("松开鼠标即识别选区文字", "Recognizes text in the selection when you release the mouse")
+        case .pin: return L("松开鼠标即把选区钉在屏幕上", "Pins the selection to the screen when you release the mouse")
+        case .gif: return L("选择区域开始录制，再按一次停止", "Select an area to start recording; press again to stop")
+        case .toggleScroll: return L("临时停用，不改变设置", "Temporarily turn off without changing settings")
+        case .controlCenter: return L("在菜单栏弹出快捷面板", "Opens the quick panel from the menu bar")
         }
     }
 
@@ -91,13 +92,14 @@ struct KeyCombo: Equatable, Hashable {
     ]
 
     private static let specialKeys: [UInt32: String] = [
-        UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥", UInt32(kVK_Space): "空格", UInt32(kVK_Delete): "⌫",
+        UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥", UInt32(kVK_Delete): "⌫",
         UInt32(kVK_Escape): "⎋", UInt32(kVK_LeftArrow): "←", UInt32(kVK_RightArrow): "→",
         UInt32(kVK_UpArrow): "↑", UInt32(kVK_DownArrow): "↓", UInt32(kVK_ForwardDelete): "⌦",
         UInt32(kVK_Home): "↖", UInt32(kVK_End): "↘", UInt32(kVK_PageUp): "⇞", UInt32(kVK_PageDown): "⇟",
     ]
 
     static func keyName(_ code: UInt32) -> String {
+        if code == UInt32(kVK_Space) { return L("空格", "Space") }
         if let name = functionKeys[code] ?? specialKeys[code] { return name }
         guard let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
               let pointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {

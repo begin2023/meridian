@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 // MARK: - 模块协议
 
@@ -161,11 +162,11 @@ class BaseModule: NSObject, MonitorModule {
     private func showContextMenu() {
         guard let button = statusItem?.button else { return }
         let menu = NSMenu()
-        let preferences = NSMenuItem(title: "偏好设置…", action: #selector(openPreferences), keyEquivalent: "")
+        let preferences = NSMenuItem(title: L("偏好设置…", "Settings…"), action: #selector(openPreferences), keyEquivalent: "")
         preferences.target = AppDelegate.shared
         menu.addItem(preferences)
         if AppDelegate.shared?.allowsQuitAction == true {
-            let quit = NSMenuItem(title: "退出 MonitoringLab", action: #selector(quitApp), keyEquivalent: "")
+            let quit = NSMenuItem(title: L("退出 MonitoringLab", "Quit MonitoringLab"), action: #selector(quitApp), keyEquivalent: "")
             quit.target = AppDelegate.shared
             menu.addItem(quit)
         }

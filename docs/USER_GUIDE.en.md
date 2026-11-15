@@ -13,6 +13,8 @@ This guide describes the current source build. Architecture, signing, and known 
 
 Appearance offers **System**, **Light**, and **Dark**. **System** follows the current macOS appearance; the other choices override Meridian's appearance.
 
+Language offers **System**, **简体中文**, and **English** under **General › Appearance & Startup**. The main window, control center, and menus update immediately; screenshot editor and pin windows that are already open pick up the new language the next time they open.
+
 ## Menu bar and main window
 
 | Action | Result |
@@ -77,7 +79,14 @@ Use System Auto if temperature readings are missing, abnormal, or inconsistent w
 
 ## Scroll enhancement
 
-Configure smooth scrolling, direction reversal, and per-app exceptions on the Scrolling page. Use the menu bar quick menu or a custom shortcut to pause and resume without losing the configured values.
+Configure smooth scrolling, direction reversal, and per-app settings on the Scrolling page. Use the menu bar quick menu or a custom shortcut to pause and resume without losing the configured values.
+
+**Per-app settings:** click **Add App…** and pick an app. Each app gets two independent options, **Smooth** and **Reverse**, each set to **Global**, **On**, or **Off**:
+
+- **On** and **Off** ignore the global switches. For example, keep reversing off globally but turn it on for one game, or keep smoothing on globally but turn it off in one design app.
+- Set both to **Off** to leave an app completely untouched.
+- Click the slider icon at the right of a row to give that app its own step size, speed, and duration.
+- With the rule mode set to **Only Listed Apps**, apps that aren't in the list are not processed at all.
 
 If scrolling jumps, moves in the wrong direction, or window dragging becomes unreliable, pause Scroll Enhancement and retest. Then quit other tools that process mouse events one at a time. Pausing a feature does not erase its settings.
 

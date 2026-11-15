@@ -1,8 +1,17 @@
 import AppKit
+import MeridianLocalization
 
 private final class OCRPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.isQuitShortcut {
+            close()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }
 
 /// Header doubles as the drag handle for the borderless panel.
@@ -31,8 +40,8 @@ private final class OCRTextView: NSTextView {
 final class OCRResultWindowController: NSWindowController, NSWindowDelegate {
     var onClose: (() -> Void)?
     private let headerView = OCRPanelHeader()
-    private let titleLabel = NSTextField(labelWithString: "识别结果")
-    private let statusLabel = NSTextField(labelWithString: "正在识别文字…")
+    private let titleLabel = NSTextField(labelWithString: L("识别结果", "Recognized Text"))
+    private let statusLabel = NSTextField(labelWithString: L("正在识别文字…", "Recognizing text…"))
     private let spinner = NSProgressIndicator()
     private let copyButton = HoverButton()
     private let closeButton = HoverButton()
@@ -61,7 +70,7 @@ final class OCRResultWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func showLoading(sourceFrame: CGRect? = nil) {
-        statusLabel.stringValue = "正在识别文字…"
+        statusLabel.stringValue = L("正在识别文字…", "Recognizing text…")
         statusLabel.textColor = AppTheme.secondaryText
         textView.string = ""
         copyButton.isEnabled = false
@@ -110,7 +119,10 @@ final class OCRResultWindowController: NSWindowController, NSWindowDelegate {
 
     func show(result: RecognizedText) {
         spinner.stopAnimation(nil)
-        statusLabel.stringValue = "\(result.lineCount) 行 · \(result.characterCount) 个字符"
+        statusLabel.stringValue = L(
+            "\(result.lineCount) 行 · \(result.characterCount) 个字符",
+            "\(result.lineCount) \(result.lineCount == 1 ? "line" : "lines") · \(result.characterCount) \(result.characterCount == 1 ? "character" : "characters")"
+        )
         statusLabel.textColor = AppTheme.secondaryText
         textView.string = result.content
         copyButton.isEnabled = true
@@ -155,9 +167,9 @@ final class OCRResultWindowController: NSWindowController, NSWindowDelegate {
         spinner.controlSize = .small
         spinner.isDisplayedWhenStopped = false
 
-        configureIcon(copyButton, symbol: "doc.on.doc", label: "复制全部文字",
+        configureIcon(copyButton, symbol: "doc.on.doc", label: L("复制全部文字", "Copy all text"),
             action: #selector(copyAll), enabled: false)
-        configureIcon(closeButton, symbol: "xmark", label: "关闭 (Esc)",
+        configureIcon(closeButton, symbol: "xmark", label: L("关闭 (Esc)", "Close (Esc)"),
             action: #selector(closeWindow), enabled: true)
 
         headerView.translatesAutoresizingMaskIntoConstraints = false
@@ -261,7 +273,7 @@ final class OCRResultWindowController: NSWindowController, NSWindowDelegate {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(textView.string, forType: .string)
-        statusLabel.stringValue = "已复制全部文字"
+        statusLabel.stringValue = L("已复制全部文字", "All text copied")
         statusLabel.textColor = AppTheme.accent
     }
 

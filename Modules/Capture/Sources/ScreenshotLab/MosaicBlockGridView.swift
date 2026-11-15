@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 final class MosaicBlockGridView: NSView {
     let values: [CGFloat] = [4, 8, 12, 20, 32, 48]
@@ -7,14 +8,17 @@ final class MosaicBlockGridView: NSView {
     var onSelectionChanged: ((CGFloat) -> Void)?
     private(set) var optionButtons: [NSButton] = []
 
-    private let labels = ["细腻", "细颗粒", "标准", "粗颗粒", "大颗粒", "特大颗粒"]
+    private let labels = [
+        L("细腻", "Finest"), L("细颗粒", "Fine"), L("标准", "Standard"),
+        L("粗颗粒", "Coarse"), L("大颗粒", "Large"), L("特大颗粒", "Extra Large"),
+    ]
     private let helpTexts = [
-        "像素块最小，保留更多画面细节",
-        "像素块较小，颗粒细密",
-        "标准大小的像素块",
-        "像素块较大，颗粒更明显",
-        "大块像素，细节更少",
-        "最大的像素块，颗粒最粗",
+        L("像素块最小，保留更多画面细节", "Smallest blocks, keeps more detail"),
+        L("像素块较小，颗粒细密", "Small blocks, fine grain"),
+        L("标准大小的像素块", "Standard-size blocks"),
+        L("像素块较大，颗粒更明显", "Larger blocks, more visible grain"),
+        L("大块像素，细节更少", "Large blocks, less detail"),
+        L("最大的像素块，颗粒最粗", "Largest blocks, coarsest grain"),
     ]
     private let gridButtonSize = NSSize(width: 40, height: 26)
     private let gridSpacing: CGFloat = 4
@@ -90,8 +94,8 @@ final class MosaicBlockGridView: NSView {
         frame.size = intrinsicContentSize
         setAccessibilityElement(true)
         setAccessibilityRole(.radioGroup)
-        setAccessibilityLabel("马赛克像素块")
-        toolTip = "选择马赛克颗粒的粗细"
+        setAccessibilityLabel(L("马赛克像素块", "Pixelate block size"))
+        toolTip = L("选择马赛克颗粒的粗细", "Choose the pixelate grain size")
 
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: intrinsicContentSize.width),
@@ -106,7 +110,7 @@ final class MosaicBlockGridView: NSView {
             button.target = self
             button.action = #selector(optionClicked(_:))
             button.identifier = NSUserInterfaceItemIdentifier("MosaicBlock.option.\(index)")
-            button.toolTip = "\(labels[index])：\(helpTexts[index])"
+            button.toolTip = L("\(labels[index])：\(helpTexts[index])", "\(labels[index]): \(helpTexts[index])")
             button.setAccessibilityLabel(labels[index])
             button.setAccessibilityHelp(helpTexts[index])
             button.onArrowKey = { [weak self] event in self?.handleArrow(event) ?? false }

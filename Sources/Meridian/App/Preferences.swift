@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import MeridianLocalization
 import ServiceManagement
 
 /// 工具箱里的五项功能。顺序即侧栏与控制中心的展示顺序。
@@ -14,21 +15,21 @@ enum Feature: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .capture: return "截图与识字"
-        case .display: return "显示器"
-        case .thermal: return "风扇与温度"
-        case .pointer: return "鼠标滚动"
-        case .telemetry: return "系统监控"
+        case .capture: return L("截图与识字", "Screenshot & OCR")
+        case .display: return L("显示器", "Displays")
+        case .thermal: return L("风扇与温度", "Fans & Temperature")
+        case .pointer: return L("鼠标滚动", "Mouse Scrolling")
+        case .telemetry: return L("系统监控", "System Monitor")
         }
     }
 
     var shortTitle: String {
         switch self {
-        case .capture: return "截图"
-        case .display: return "显示器"
-        case .thermal: return "散热"
-        case .pointer: return "滚动"
-        case .telemetry: return "监控"
+        case .capture: return L("截图", "Screenshot")
+        case .display: return L("显示器", "Displays")
+        case .thermal: return L("散热", "Cooling")
+        case .pointer: return L("滚动", "Scrolling")
+        case .telemetry: return L("监控", "Monitor")
         }
     }
 
@@ -54,11 +55,11 @@ enum Feature: String, CaseIterable, Identifiable, Codable {
 
     var summary: String {
         switch self {
-        case .capture: return "区域截图、标注、贴图、文字识别、GIF 录制与历史"
-        case .display: return "外接屏亮度、HiDPI 分辨率与刷新率、HDR 和虚拟屏"
-        case .thermal: return "温度传感器、风扇转速，自动 / 温控曲线 / 固定转速"
-        case .pointer: return "鼠标滚轮平滑滚动与方向反转，可按应用设置例外"
-        case .telemetry: return "CPU、内存、网络、磁盘、GPU 实时数据与进程排行"
+        case .capture: return L("区域截图、标注、贴图、文字识别、GIF 录制与历史", "Area capture, annotation, pins, text recognition, GIF recording, and history")
+        case .display: return L("外接屏亮度、HiDPI 分辨率与刷新率、HDR 和虚拟屏", "External display brightness, HiDPI resolutions and refresh rates, HDR, and virtual displays")
+        case .thermal: return L("温度传感器、风扇转速，自动 / 温控曲线 / 固定转速", "Temperature sensors and fan speeds: auto, temperature curve, or fixed speed")
+        case .pointer: return L("鼠标滚轮平滑滚动与方向反转，可按应用设置例外", "Smooth scrolling and reverse direction for mouse wheels, with per-app exceptions")
+        case .telemetry: return L("CPU、内存、网络、磁盘、GPU 实时数据与进程排行", "Live CPU, memory, network, disk, and GPU stats with top processes")
         }
     }
 }
@@ -72,12 +73,12 @@ enum MenuWidget: String, CaseIterable, Identifiable, Codable {
     var title: String {
         switch self {
         case .cpu: return "CPU"
-        case .memory: return "内存"
-        case .network: return "网速"
-        case .disk: return "磁盘"
+        case .memory: return L("内存", "Memory")
+        case .network: return L("网速", "Network")
+        case .disk: return L("磁盘", "Disk")
         case .gpu: return "GPU"
-        case .temperature: return "CPU 温度"
-        case .fan: return "风扇转速"
+        case .temperature: return L("CPU 温度", "CPU Temperature")
+        case .fan: return L("风扇转速", "Fan Speed")
         }
     }
 
@@ -94,9 +95,9 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .system: return "跟随系统"
-        case .light: return "浅色"
-        case .dark: return "深色"
+        case .system: return L("跟随系统", "System")
+        case .light: return L("浅色", "Light")
+        case .dark: return L("深色", "Dark")
         }
     }
 
@@ -140,6 +141,16 @@ final class Preferences: ObservableObject {
             applyAppearance()
         }
     }
+
+    /// 界面语言。SwiftUI 页面随 `languageRevision` 重建；模块自建的 AppKit 窗口下次打开时生效。
+    @Published var language: AppLanguage = AppLanguage.current {
+        didSet {
+            guard language != oldValue else { return }
+            AppLanguage.current = language
+            languageRevision += 1
+        }
+    }
+    @Published private(set) var languageRevision = 0
 
     @Published var hotKeys: [HotKeyAction: KeyCombo] {
         didSet {

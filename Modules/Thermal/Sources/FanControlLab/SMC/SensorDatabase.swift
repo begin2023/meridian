@@ -1,4 +1,5 @@
 import Foundation
+import MeridianLocalization
 
 /// Built-in read-only temperature candidates; no external naming tables are loaded.
 struct SensorDefinition: Equatable {
@@ -52,7 +53,7 @@ final class SensorDatabase {
     }
 
     func fanName(for index: Int) -> String {
-        fanNames[index] ?? "风扇 \(index)"
+        fanNames[index] ?? L("风扇 \(index)", "Fan \(index)")
     }
 
     private func installFallbackCatalog() {
@@ -63,19 +64,19 @@ final class SensorDatabase {
 
     /// 无外部表时的保守探测集。名称刻意保持通用，避免把未核实来源的
     /// 名称或机型映射伪装成完整数据库。
-    private static let fallbackSensors: [SensorDefinition] = {
+    private static var fallbackSensors: [SensorDefinition] {
         let cpuKeys = ["Tp01", "Tp05", "Tp09", "Tp0D", "Tp0H", "Tp0L",
                        "Te05", "Te09", "Te0H", "Te0S", "Te0U", "Te0V"]
         let gpuKeys = ["Tg04", "Tg12", "Tg05", "Tg0D", "Tg0L", "Tg0T"]
         let otherKeys = ["Tm1p", "TA0P", "Ta0P", "TW0P"]
         return cpuKeys.map {
-            SensorDefinition(key: $0, name: "CPU 候选 \($0)", groupName: "CPU Core Average", kind: .cpu)
+            SensorDefinition(key: $0, name: L("CPU 候选 \($0)", "CPU Candidate \($0)"), groupName: "CPU Core Average", kind: .cpu)
         } + gpuKeys.map {
-            SensorDefinition(key: $0, name: "GPU 候选 \($0)", groupName: "GPU Core Average", kind: .gpu)
+            SensorDefinition(key: $0, name: L("GPU 候选 \($0)", "GPU Candidate \($0)"), groupName: "GPU Core Average", kind: .gpu)
         } + otherKeys.map {
-            SensorDefinition(key: $0, name: "温度候选 \($0)", groupName: nil, kind: .other)
+            SensorDefinition(key: $0, name: L("温度候选 \($0)", "Temperature Candidate \($0)"), groupName: nil, kind: .other)
         }
-    }()
+    }
 
     static func slug(_ name: String) -> String {
         name.lowercased()

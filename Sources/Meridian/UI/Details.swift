@@ -1,5 +1,6 @@
 import AppKit
 import FanControlLabKit
+import MeridianLocalization
 import MonitoringLabKit
 import SwiftUI
 
@@ -49,7 +50,7 @@ struct ProcessList: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
             if rows.isEmpty {
-                Text("暂无活动").font(.system(size: 11)).foregroundStyle(.tertiary).padding(.vertical, 4)
+                Text(L("暂无活动", "No activity")).font(.system(size: 11)).foregroundStyle(.tertiary).padding(.vertical, 4)
             }
             ForEach(rows) { row in
                 HStack(spacing: 8) {
@@ -92,13 +93,13 @@ struct CPUDetail: View {
             ChartBox(values: model.cpuHistory, maxValue: 100, color: .green) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(Format.percent(s.cpuPercent)).font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
-                    Text("总占用").foregroundStyle(.secondary).font(.system(size: 12))
+                    Text(L("总占用", "Total Usage")).foregroundStyle(.secondary).font(.system(size: 12))
                     Spacer()
-                    Text("\(s.corePercents.count) 核").foregroundStyle(.secondary).font(.system(size: 12))
+                    Text(L("\(s.corePercents.count) 核", "\(s.corePercents.count) cores")).foregroundStyle(.secondary).font(.system(size: 12))
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("每个核心").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                Text(L("每个核心", "Per Core")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 6) {
                     ForEach(Array(s.corePercents.enumerated()), id: \.offset) { index, value in
                         HStack(spacing: 6) {
@@ -113,7 +114,7 @@ struct CPUDetail: View {
             }
             .padding(12)
             .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            ProcessList(title: "占用最高的进程", rows: model.ranking.byCPU) { String(format: "%.1f%%", $0.cpuPercent) }
+            ProcessList(title: L("占用最高的进程", "Top Processes"), rows: model.ranking.byCPU) { String(format: "%.1f%%", $0.cpuPercent) }
         }
         .telemetryDetail(model, kind: .cpu)
     }
@@ -143,19 +144,19 @@ struct MemoryDetail: View {
                     .init(fraction: Double(s.memoryCompressed) / total, color: .purple),
                 ], height: 10)
                 HStack {
-                    legend("应用", s.memoryApp, .blue)
-                    legend("联动", s.memoryWired, .orange)
-                    legend("压缩", s.memoryCompressed, .purple)
+                    legend(L("应用", "App"), s.memoryApp, .blue)
+                    legend(L("联动", "Wired"), s.memoryWired, .orange)
+                    legend(L("压缩", "Compressed"), s.memoryCompressed, .purple)
                 }
                 HStack {
-                    StatValue(title: "可用", value: Format.memory(s.memoryTotal > s.memoryUsed ? s.memoryTotal - s.memoryUsed : 0))
+                    StatValue(title: L("可用", "Available"), value: Format.memory(s.memoryTotal > s.memoryUsed ? s.memoryTotal - s.memoryUsed : 0))
                     Spacer()
-                    StatValue(title: "交换", value: "\(Format.memory(s.swapUsed)) / \(Format.memory(s.swapTotal))")
+                    StatValue(title: L("交换", "Swap"), value: "\(Format.memory(s.swapUsed)) / \(Format.memory(s.swapTotal))")
                 }
             }
             .padding(12)
             .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            ProcessList(title: "内存占用最高的进程", rows: model.ranking.byMemory) { Format.memory($0.memoryBytes) }
+            ProcessList(title: L("内存占用最高的进程", "Top Processes by Memory"), rows: model.ranking.byMemory) { Format.memory($0.memoryBytes) }
         }
         .telemetryDetail(model, kind: .memory)
     }
@@ -181,46 +182,46 @@ struct NetworkDetail: View {
             ChartBox(height: 90, values: model.downHistory, secondary: model.upHistory, color: .cyan, secondaryColor: .orange) {
                 HStack(spacing: 18) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Label("下载", systemImage: "arrow.down").font(.system(size: 11)).foregroundStyle(.cyan)
+                        Label(L("下载", "Download"), systemImage: "arrow.down").font(.system(size: 11)).foregroundStyle(.cyan)
                         Text(Format.rate(s.netDownPerSecond)).font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
                     }
                     VStack(alignment: .leading, spacing: 0) {
-                        Label("上传", systemImage: "arrow.up").font(.system(size: 11)).foregroundStyle(.orange)
+                        Label(L("上传", "Upload"), systemImage: "arrow.up").font(.system(size: 11)).foregroundStyle(.orange)
                         Text(Format.rate(s.netUpPerSecond)).font(.system(size: 20, weight: .semibold, design: .rounded)).monospacedDigit()
                     }
                     Spacer()
                 }
             }
             HStack {
-                StatValue(title: "主接口", value: s.netInterface.isEmpty ? "—" : s.netInterface)
+                StatValue(title: L("主接口", "Interface"), value: s.netInterface.isEmpty ? "—" : s.netInterface)
                 Spacer()
-                StatValue(title: "本机 IP", value: s.localIP.isEmpty ? "—" : s.localIP)
+                StatValue(title: L("本机 IP", "Local IP"), value: s.localIP.isEmpty ? "—" : s.localIP)
             }
             .padding(12)
             .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .textSelection(.enabled)
             HStack {
-                StatValue(title: "累计下载", value: Format.bytes(Double(s.netTotalDownBytes)), color: .cyan)
+                StatValue(title: L("累计下载", "Total Downloaded"), value: Format.bytes(Double(s.netTotalDownBytes)), color: .cyan)
                 Spacer()
-                StatValue(title: "累计上传", value: Format.bytes(Double(s.netTotalUpBytes)), color: .orange)
+                StatValue(title: L("累计上传", "Total Uploaded"), value: Format.bytes(Double(s.netTotalUpBytes)), color: .orange)
             }
             .padding(12)
             .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text("出口公网 IP").font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text(L("出口公网 IP", "Public IP")).font(.system(size: 10)).foregroundStyle(.secondary)
                     Spacer()
                     if !model.publicIPLookupEnabled {
                         EmptyView()
                     } else if model.publicIPLoading {
                         ProgressView().controlSize(.mini)
                     } else {
-                        Button("刷新") { model.requestPublicIP(force: true) }
+                        Button(L("刷新", "Refresh")) { model.requestPublicIP(force: true) }
                             .buttonStyle(.borderless).font(.system(size: 10))
                     }
                 }
                 if model.publicIPLookupEnabled {
-                    Text(model.publicIPLoading ? "查询中…" : (model.publicIP.isEmpty ? "未获取" : model.publicIP))
+                    Text(model.publicIPLoading ? L("查询中…", "Looking up…") : (model.publicIP.isEmpty ? L("未获取", "Not fetched") : model.publicIP))
                         .font(.system(size: 17, weight: .semibold, design: .rounded)).monospacedDigit()
                     if !model.publicIPLocation.isEmpty {
                         Label(model.publicIPLocation, systemImage: "mappin.and.ellipse")
@@ -232,10 +233,10 @@ struct NetworkDetail: View {
                     }
                 } else {
                     // 查询会把出口 IP 交给第三方，先问再连。
-                    Text("默认不联网查询：会把本机出口 IP 交给 ipinfo.io 与 freeipapi.com。")
+                    Text(L("默认不联网查询：会把本机出口 IP 交给 ipinfo.io 与 freeipapi.com。", "Not looked up by default: doing so sends your public IP to ipinfo.io and freeipapi.com."))
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Button("查询公网 IP…") { model.setPublicIPLookupEnabled(true) }
+                    Button(L("查询公网 IP…", "Look Up Public IP…")) { model.setPublicIPLookupEnabled(true) }
                         .controlSize(.small)
                 }
             }
@@ -243,10 +244,10 @@ struct NetworkDetail: View {
             .padding(12)
             .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .textSelection(.enabled)
-            ProcessList(title: "网络活动进程排行", rows: model.ranking.byNetwork) {
+            ProcessList(title: L("网络活动进程排行", "Top Processes by Network"), rows: model.ranking.byNetwork) {
                 "↓ \(Format.rate($0.networkReceivePerSecond))  ↑ \(Format.rate($0.networkSendPerSecond))"
             }
-            Text("只统计物理网卡（Wi-Fi / 以太网），代理隧道的流量不会重复计算。")
+            Text(L("只统计物理网卡（Wi-Fi / 以太网），代理隧道的流量不会重复计算。", "Counts physical interfaces only (Wi-Fi / Ethernet), so proxy tunnel traffic isn't counted twice."))
                 .font(.system(size: 10.5)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading)
         }
         .telemetryDetail(model, kind: .network)
@@ -264,8 +265,8 @@ struct DiskDetail: View {
         VStack(spacing: 10) {
             ChartBox(values: model.readHistory, secondary: model.writeHistory, color: .indigo, secondaryColor: .pink) {
                 HStack(spacing: 18) {
-                    StatValue(title: "读取", value: Format.rate(s.diskReadPerSecond), color: .indigo)
-                    StatValue(title: "写入", value: Format.rate(s.diskWritePerSecond), color: .pink)
+                    StatValue(title: L("读取", "Read"), value: Format.rate(s.diskReadPerSecond), color: .indigo)
+                    StatValue(title: L("写入", "Write"), value: Format.rate(s.diskWritePerSecond), color: .pink)
                     Spacer()
                 }
             }
@@ -276,7 +277,7 @@ struct DiskDetail: View {
                             Image(systemName: volume.mountPath == "/" ? "internaldrive" : "externaldrive").foregroundStyle(.secondary)
                             Text(volume.name).font(.system(size: 12, weight: .medium))
                             Spacer()
-                            Text("可用 \(Format.bytes(Double(volume.freeBytes))) / \(Format.bytes(Double(volume.totalBytes)))")
+                            Text(L("可用 \(Format.bytes(Double(volume.freeBytes))) / \(Format.bytes(Double(volume.totalBytes)))", "\(Format.bytes(Double(volume.freeBytes))) free of \(Format.bytes(Double(volume.totalBytes)))"))
                                 .font(.system(size: 10.5)).foregroundStyle(.secondary)
                         }
                         MeterBar(fraction: volume.usedFraction, color: volume.usedFraction > 0.9 ? .red : .indigo)
@@ -285,7 +286,7 @@ struct DiskDetail: View {
             }
             .padding(12)
             .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            ProcessList(title: "磁盘读写最多的进程", rows: model.ranking.byDisk) {
+            ProcessList(title: L("磁盘读写最多的进程", "Top Processes by Disk I/O"), rows: model.ranking.byDisk) {
                 Format.compactRate($0.diskReadPerSecond + $0.diskWritePerSecond) + "/s"
             }
         }
@@ -304,7 +305,7 @@ struct GPUDetail: View {
             ChartBox(values: model.gpuHistory, maxValue: 100, color: .purple) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(Format.percent(g.utilization)).font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
-                    Text("利用率").foregroundStyle(.secondary).font(.system(size: 12))
+                    Text(L("利用率", "Utilization")).foregroundStyle(.secondary).font(.system(size: 12))
                     Spacer()
                     if let mhz = g.averageMegahertz, (g.idleFraction ?? 1) < 0.999 {
                         Text(Format.megahertz(mhz)).foregroundStyle(.secondary).font(.system(size: 12)).monospacedDigit()
@@ -314,8 +315,8 @@ struct GPUDetail: View {
             if g.powerWatts != nil || !model.gpuPowerHistory.isEmpty {
                 ChartBox(height: 44, values: model.gpuPowerHistory, color: .orange) {
                     HStack(spacing: 18) {
-                        StatValue(title: "功耗", value: g.powerWatts.map(Format.watts) ?? "--", color: .orange)
-                        StatValue(title: "已用内存", value: g.memoryInUse > 0 ? Format.memory(g.memoryInUse) : "--")
+                        StatValue(title: L("功耗", "Power"), value: g.powerWatts.map(Format.watts) ?? "--", color: .orange)
+                        StatValue(title: L("已用内存", "Memory Used"), value: g.memoryInUse > 0 ? Format.memory(g.memoryInUse) : "--")
                         Spacer()
                     }
                 }
@@ -323,7 +324,7 @@ struct GPUDetail: View {
             if !g.states.isEmpty {
                 FrequencyStates(gpu: g)
             }
-            ProcessList(title: "GPU 占用最高的进程", rows: model.ranking.byGPU) { String(format: "%.1f%%", $0.gpuPercent) }
+            ProcessList(title: L("GPU 占用最高的进程", "Top Processes by GPU"), rows: model.ranking.byGPU) { String(format: "%.1f%%", $0.gpuPercent) }
             Text(footer(g))
                 .font(.system(size: 10.5)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -333,10 +334,10 @@ struct GPUDetail: View {
     private func footer(_ g: GPUSnapshot) -> String {
         var parts: [String] = []
         if !g.model.isEmpty { parts.append(g.model) }
-        if g.coreCount > 0 { parts.append("\(g.coreCount) 核") }
-        if let top = g.maxMegahertz { parts.append("最高 \(Format.megahertz(top))") }
-        let head = parts.isEmpty ? "" : parts.joined(separator: " · ") + "。"
-        return head + "利用率包含系统的桌面合成；统一内存没有独立显存，已用内存只显示绝对值。"
+        if g.coreCount > 0 { parts.append(L("\(g.coreCount) 核", "\(g.coreCount) cores")) }
+        if let top = g.maxMegahertz { parts.append(L("最高 \(Format.megahertz(top))", "up to \(Format.megahertz(top))")) }
+        let head = parts.isEmpty ? "" : parts.joined(separator: " · ") + L("。", ". ")
+        return head + L("利用率包含系统的桌面合成；统一内存没有独立显存，已用内存只显示绝对值。", "Utilization includes system desktop compositing; unified memory has no dedicated VRAM, so memory used is shown as an absolute value.")
     }
 }
 
@@ -348,10 +349,10 @@ private struct FrequencyStates: View {
         let top = max(gpu.states.map(\.residency).max() ?? 0, 0.01)
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("频率分布").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                Text(L("频率分布", "Frequency Distribution")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                 Spacer()
                 if let idle = gpu.idleFraction {
-                    Text("空闲 \(Format.percent(idle * 100))").font(.system(size: 10.5)).foregroundStyle(.secondary).monospacedDigit()
+                    Text(L("空闲 \(Format.percent(idle * 100))", "Idle \(Format.percent(idle * 100))")).font(.system(size: 10.5)).foregroundStyle(.secondary).monospacedDigit()
                 }
             }
             HStack(alignment: .bottom, spacing: 3) {
@@ -395,7 +396,7 @@ struct ThermalDetail: View {
                 FanCard(model: model, fan: fan)
             }
             if model.fans.isEmpty {
-                Text(model.running ? "没有读到风扇。" : "散热功能已关闭。").font(.callout).foregroundStyle(.secondary)
+                Text(model.running ? L("没有读到风扇。", "No fans found.") : L("散热功能已关闭。", "Thermal control is off.")).font(.callout).foregroundStyle(.secondary)
             }
             SensorList(model: model, limit: showsSensorsLimit)
         }
@@ -419,13 +420,13 @@ struct FanCard: View {
             }
             MeterBar(fraction: (fan.currentRPM - fan.minimumRPM) / max(fan.maximumRPM - fan.minimumRPM, 1), color: .orange)
             HStack {
-                Text("最低 \(Int(fan.minimumRPM))").font(.system(size: 10.5)).foregroundStyle(.secondary)
+                Text(L("最低 \(Int(fan.minimumRPM))", "Min \(Int(fan.minimumRPM))")).font(.system(size: 10.5)).foregroundStyle(.secondary)
                 Spacer()
                 if fan.mode != .automatic {
-                    Text("目标 \(Int(fan.targetRPM))").font(.system(size: 10.5)).foregroundStyle(.secondary)
+                    Text(L("目标 \(Int(fan.targetRPM))", "Target \(Int(fan.targetRPM))")).font(.system(size: 10.5)).foregroundStyle(.secondary)
                     Spacer()
                 }
-                Text("最高 \(Int(fan.maximumRPM))").font(.system(size: 10.5)).foregroundStyle(.secondary)
+                Text(L("最高 \(Int(fan.maximumRPM))", "Max \(Int(fan.maximumRPM))")).font(.system(size: 10.5)).foregroundStyle(.secondary)
             }
             switch fan.mode {
             case .constant:
@@ -433,7 +434,7 @@ struct FanCard: View {
             case .sensor(let sensorID, let low, let high):
                 CurveEditor(model: model, fan: fan, appliedSensor: sensorID, appliedLow: low, appliedHigh: high)
             case .automatic:
-                Text("由系统固件按温度自动调节。").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(L("由系统固件按温度自动调节。", "Adjusted automatically by system firmware based on temperature.")).font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
         .padding(12)
@@ -442,9 +443,9 @@ struct FanCard: View {
 
     private var modeTitle: String {
         switch fan.mode {
-        case .automatic: return "自动"
-        case .sensor: return "温控"
-        case .constant(let rpm): return Double(rpm) >= fan.maximumRPM * 0.99 ? "全速" : "固定"
+        case .automatic: return L("自动", "Auto")
+        case .sensor: return L("温控", "Curve")
+        case .constant(let rpm): return Double(rpm) >= fan.maximumRPM * 0.99 ? L("全速", "Full Speed") : L("固定", "Fixed")
         }
     }
 }
@@ -477,29 +478,29 @@ private struct CurveEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("依据传感器", selection: $sensor) {
+            Picker(L("依据传感器", "Sensor"), selection: $sensor) {
                 ForEach(sensorChoices, id: \.id) { sensor in
                     Text("\(sensor.name)  \(model.temperature(sensor.celsius))").tag(sensor.id)
                 }
             }
             .controlSize(.small)
             HStack {
-                Text("开始提速").font(.system(size: 11)).frame(width: 56, alignment: .leading)
+                Text(L("开始提速", "Ramp Up")).font(.system(size: 11)).frame(width: 64, alignment: .leading)
                 Slider(value: Binding(get: { low }, set: { low = $0.rounded(); if high < low + 5 { high = min(low + 5, 105) } }),
                        in: 40...90).controlSize(.small)
                 Text("\(Int(low))°C").font(.system(size: 11, design: .rounded)).monospacedDigit().frame(width: 36)
             }
             HStack {
-                Text("满速温度").font(.system(size: 11)).frame(width: 56, alignment: .leading)
+                Text(L("满速温度", "Full Speed")).font(.system(size: 11)).frame(width: 64, alignment: .leading)
                 Slider(value: Binding(get: { high }, set: { high = max($0.rounded(), low + 5) }), in: 60...105).controlSize(.small)
                 Text("\(Int(high))°C").font(.system(size: 11, design: .rounded)).monospacedDigit().frame(width: 36)
             }
             HStack(alignment: .center) {
-                Text("低于 \(Int(low))°C 保持最低转速，到 \(Int(high))°C 时达到 \(Int(fan.effectiveMaximumRPM)) RPM，中间线性提速。")
+                Text(L("低于 \(Int(low))°C 保持最低转速，到 \(Int(high))°C 时达到 \(Int(fan.effectiveMaximumRPM)) RPM，中间线性提速。", "Minimum speed below \(Int(low))°C, rising linearly to \(Int(fan.effectiveMaximumRPM)) RPM at \(Int(high))°C."))
                     .font(.system(size: 10.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
                 if dirty {
-                    Button("还原") { reset() }.controlSize(.small)
+                    Button(L("还原", "Revert")) { reset() }.controlSize(.small)
                 }
                 ApplyButton(dirty: dirty) {
                     model.setMode(.sensor(sensorID: sensor, increaseAt: low, maxAt: high), for: fan.index)
@@ -534,7 +535,7 @@ struct ApplyButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(dirty ? "应用" : "已应用").frame(minWidth: 44)
+            Text(dirty ? L("应用", "Apply") : L("已应用", "Applied")).frame(minWidth: 44)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
@@ -551,14 +552,14 @@ struct SensorList: View {
         let sensors = (model.reading?.sensors ?? []).sorted { $0.celsius > $1.celsius }
         let shown = expanded || limit == nil ? sensors : Array(sensors.prefix(limit!))
         VStack(alignment: .leading, spacing: 5) {
-            Text("温度传感器（\(sensors.count)）").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+            Text(L("温度传感器（\(sensors.count)）", "Temperature Sensors (\(sensors.count))")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
             ForEach(shown) { sensor in
                 HStack {
                     Image(systemName: sensor.kind == .gpu ? "cpu.fill" : sensor.kind == .cpu ? "cpu" : "thermometer.medium")
                         .font(.system(size: 10)).foregroundStyle(.secondary).frame(width: 14)
                     Text(sensor.name).font(.system(size: 11.5)).lineLimit(1)
                     if sensor.isGroupAverage {
-                        Text("平均").font(.system(size: 9)).padding(.horizontal, 4).padding(.vertical, 1)
+                        Text(L("平均", "Avg")).font(.system(size: 9)).padding(.horizontal, 4).padding(.vertical, 1)
                             .background(.fill.tertiary, in: Capsule())
                     }
                     Spacer()
@@ -567,7 +568,7 @@ struct SensorList: View {
                 }
             }
             if let limit, sensors.count > limit {
-                Button(expanded ? "收起" : "显示全部 \(sensors.count) 个") { expanded.toggle() }
+                Button(expanded ? L("收起", "Show Less") : L("显示全部 \(sensors.count) 个", "Show All \(sensors.count)")) { expanded.toggle() }
                     .buttonStyle(.link).font(.system(size: 11))
             }
         }

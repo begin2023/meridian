@@ -1,5 +1,6 @@
 import AppKit
 import DisplayCore
+import MeridianLocalization
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private let embedded: Bool
@@ -212,7 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let info = displayManager.display(with: selection.displayIdentifier),
            !ModeValidation.isRenderable(selection.mode, in: info.modes) {
             let alert = NSAlert()
-            alert.messageText = "切换分辨率失败"
+            alert.messageText = L("切换分辨率失败", "Couldn't Change Resolution")
             alert.informativeText = DisplayBridgeError.unsupportedMode(selection.mode).localizedDescription
             alert.runModal()
             return
@@ -227,7 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             } catch {
                 DispatchQueue.main.async {
                     let alert = NSAlert()
-                    alert.messageText = "切换分辨率失败"
+                    alert.messageText = L("切换分辨率失败", "Couldn't Change Resolution")
                     alert.informativeText = error.localizedDescription
                     alert.runModal()
                 }
@@ -260,7 +261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 } catch {
                     DispatchQueue.main.async {
                         let alert = NSAlert()
-                        alert.messageText = "恢复原生分辨率失败"
+                        alert.messageText = L("恢复原生分辨率失败", "Couldn't Restore Native Resolution")
                         alert.informativeText = error.localizedDescription
                         alert.runModal()
                     }
@@ -286,7 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 let nativeHeight = info?["kCGDisplayPixelHeight"] as? Int ?? display.pixelHeight
                 let refresh = display.currentMode?.refreshRate ?? 60
                 let spec = VirtualDisplayController.Spec(
-                    name: selection.hiDPI ? "DisplayLab 上采样 HiDPI" : "DisplayLab 上采样",
+                    name: selection.hiDPI ? L("DisplayLab 上采样 HiDPI", "DisplayLab Upsample HiDPI") : L("DisplayLab 上采样", "DisplayLab Upsample"),
                     pixelWidth: nativeWidth * 2,
                     pixelHeight: nativeHeight * 2,
                     refreshRate: refresh,
@@ -296,10 +297,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self.displayManager.refresh()
                 self.refreshStatusItem()
                 let alert = NSAlert()
-                alert.messageText = "上采样已开启"
+                alert.messageText = L("上采样已开启", "Upsampling Enabled")
                 let effect = selection.hiDPI
-                    ? "桌面布局大小不变，但按 2× 渲染再缩到面板，窗口文字更细腻。"
-                    : "桌面变成 \(session.spec.pixelWidth)×\(session.spec.pixelHeight) 逻辑像素（4 倍工作区），UI 明显变小，系统将高分辨率画面缩放到物理屏幕。"
+                    ? L("桌面布局大小不变，但按 2× 渲染再缩到面板，窗口文字更细腻。", "The desktop layout keeps its size but renders at 2× and scales down to the panel for crisper text.")
+                    : L("桌面变成 \(session.spec.pixelWidth)×\(session.spec.pixelHeight) 逻辑像素（4 倍工作区），UI 明显变小，系统将高分辨率画面缩放到物理屏幕。", "The desktop becomes \(session.spec.pixelWidth)×\(session.spec.pixelHeight) logical pixels (4× the workspace); the UI gets noticeably smaller and the system scales the high-resolution image to the physical display.")
                 alert.informativeText = """
                 \(effect)
 
@@ -311,8 +312,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self.displayManager.refresh()
                 self.refreshStatusItem()
                 let alert = NSAlert()
-                alert.messageText = "开启上采样失败"
-                alert.informativeText = "\(error.localizedDescription)\n\n显示器未被改动。"
+                alert.messageText = L("开启上采样失败", "Couldn't Enable Upsampling")
+                alert.informativeText = L("\(error.localizedDescription)\n\n显示器未被改动。", "\(error.localizedDescription)\n\nThe display was not changed.")
                 alert.runModal()
             }
         }
@@ -325,7 +326,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 try self.virtualDisplayController.teardownMirroredUpsample()
             } catch {
                 let alert = NSAlert()
-                alert.messageText = "关闭上采样失败"
+                alert.messageText = L("关闭上采样失败", "Couldn't Turn Off Upsampling")
                 alert.informativeText = error.localizedDescription
                 alert.runModal()
                 return
@@ -337,18 +338,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private func nativeMode(for identifier: CGDirectDisplayID) throws -> DisplayModeInfo {
         guard let display = displayManager.display(with: identifier) else {
-            throw ModeServiceError.configurationFailed("找不到该显示器。")
+            throw ModeServiceError.configurationFailed(L("找不到该显示器。", "Display not found."))
         }
         let info = CoreDisplayBridge.createInfoDictionary(for: identifier)
         let nativeWidth = info?["kCGDisplayPixelWidth"] as? Int ?? 0
         let nativeHeight = info?["kCGDisplayPixelHeight"] as? Int ?? 0
         guard nativeWidth > 0, nativeHeight > 0 else {
-            throw ModeServiceError.configurationFailed("无法确定原生分辨率。")
+            throw ModeServiceError.configurationFailed(L("无法确定原生分辨率。", "Couldn't determine the native resolution."))
         }
         guard let best = display.sortedModes
             .filter({ $0.pixelWidth == nativeWidth && $0.pixelHeight == nativeHeight })
             .max(by: { $0.refreshRate < $1.refreshRate }) else {
-            throw ModeServiceError.configurationFailed("模式列表里没有原生分辨率（\(nativeWidth)×\(nativeHeight)）。")
+            throw ModeServiceError.configurationFailed(L("模式列表里没有原生分辨率（\(nativeWidth)×\(nativeHeight)）。", "The mode list doesn't include the native resolution (\(nativeWidth)×\(nativeHeight))."))
         }
         return best
     }
@@ -381,7 +382,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.displayManager.refresh()
             } catch {
                 let alert = NSAlert()
-                alert.messageText = "创建虚拟屏幕失败"
+                alert.messageText = L("创建虚拟屏幕失败", "Couldn't Create Virtual Display")
                 alert.informativeText = error.localizedDescription
                 alert.runModal()
             }
@@ -431,14 +432,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             do {
                 if let message = try await operation() {
                     let alert = NSAlert()
-                    alert.messageText = "显示器覆盖"
+                    alert.messageText = L("显示器覆盖", "Display Override")
                     alert.informativeText = message
                     alert.runModal()
                 }
             } catch {
                 NSApp.activate(ignoringOtherApps: true)
                 let alert = NSAlert()
-                alert.messageText = "显示器覆盖操作失败"
+                alert.messageText = L("显示器覆盖操作失败", "Display Override Failed")
                 alert.informativeText = error.localizedDescription
                 alert.runModal()
             }
@@ -481,10 +482,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
                 self?.displayManager.refresh()
                 if applied != target {
                     let alert = NSAlert()
-                    alert.messageText = "HDR 未能切换"
+                    alert.messageText = L("HDR 未能切换", "Couldn't Switch HDR")
                     alert.informativeText = target
-                        ? "开启 HDR 未生效，请改用 系统设置 → 显示器 → HDR。"
-                        : "关闭 HDR 未生效，请改用 系统设置 → 显示器 → HDR。"
+                        ? L("开启 HDR 未生效，请改用 系统设置 → 显示器 → HDR。", "Turning on HDR didn't take effect. Use System Settings → Displays → HDR instead.")
+                        : L("关闭 HDR 未生效，请改用 系统设置 → 显示器 → HDR。", "Turning off HDR didn't take effect. Use System Settings → Displays → HDR instead.")
                     alert.runModal()
                 }
             }

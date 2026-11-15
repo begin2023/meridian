@@ -2,6 +2,7 @@ import Foundation
 import Security
 import CryptoKit
 import Darwin
+import MeridianLocalization
 
 public struct HelperConfiguration: Codable {
     public let requirement: String
@@ -12,15 +13,15 @@ public struct HelperConfiguration: Codable {
     public static func load(label: String) throws -> HelperConfiguration {
         let path = HelperInstallation.directory + "/\(label).json"
         let fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
-        guard fd >= 0 else { throw HelperFailure.rejected("助手配置不存在。") }
+        guard fd >= 0 else { throw HelperFailure.rejected(L("助手配置不存在。", "Helper configuration not found.")) }
         defer { close(fd) }
         var st = stat()
-        guard fstat(fd, &st) == 0, st.st_uid == 0, st.st_mode & S_IFMT == S_IFREG, st.st_mode & 0o022 == 0, st.st_size > 0, st.st_size <= 16384 else { throw HelperFailure.rejected("不安全的助手配置。") }
+        guard fstat(fd, &st) == 0, st.st_uid == 0, st.st_mode & S_IFMT == S_IFREG, st.st_mode & 0o022 == 0, st.st_size > 0, st.st_size <= 16384 else { throw HelperFailure.rejected(L("不安全的助手配置。", "Unsafe helper configuration.")) }
         var bytes = [UInt8](repeating: 0, count: Int(st.st_size))
         let count = bytes.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
-        guard count == bytes.count else { throw HelperFailure.rejected("助手配置不完整。") }
+        guard count == bytes.count else { throw HelperFailure.rejected(L("助手配置不完整。", "Incomplete helper configuration.")) }
         let config = try JSONDecoder().decode(Self.self, from: Data(bytes))
-        guard config.uid > 0, config.gid > 0, config.requirement.count < 2048 else { throw HelperFailure.rejected("无效的助手配置。") }
+        guard config.uid > 0, config.gid > 0, config.requirement.count < 2048 else { throw HelperFailure.rejected(L("无效的助手配置。", "Invalid helper configuration.")) }
         return config
     }
 
@@ -41,7 +42,7 @@ public struct HelperConfiguration: Codable {
     private func secRequirement() throws -> SecRequirement {
         var parsed: SecRequirement?
         guard SecRequirementCreateWithString(requirement as CFString, [], &parsed) == errSecSuccess, let parsed else {
-            throw HelperFailure.rejected("助手配置中的签名要求无效。")
+            throw HelperFailure.rejected(L("助手配置中的签名要求无效。", "Invalid code signing requirement in the helper configuration."))
         }
         return parsed
     }
@@ -68,11 +69,11 @@ public struct HelperInstallation {
         guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
               SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
               SecCodeCopyDesignatedRequirement(staticCode, [], &requirement) == errSecSuccess, let requirement,
-              SecRequirementCopyString(requirement, [], &text) == errSecSuccess, let text else { throw HelperFailure.rejected("请从签名的 Meridian.app 安装助手。") }
-        guard Bundle.main.bundleIdentifier == "app.meridian.control" else { throw HelperFailure.rejected("只有 Meridian.app 可以安装助手。") }
+              SecRequirementCopyString(requirement, [], &text) == errSecSuccess, let text else { throw HelperFailure.rejected(L("请从签名的 Meridian.app 安装助手。", "Install the helper from a signed Meridian.app.")) }
+        guard Bundle.main.bundleIdentifier == "app.meridian.control" else { throw HelperFailure.rejected(L("只有 Meridian.app 可以安装助手。", "Only Meridian.app can install the helper.")) }
         var info: CFDictionary?
         guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
-              let flags = (info as? [String: Any])?[kSecCodeInfoFlags as String] as? UInt32, flags & 0x10000 != 0 else { throw HelperFailure.rejected("应用需要启用 hardened runtime 后才能安装助手。") }
+              let flags = (info as? [String: Any])?[kSecCodeInfoFlags as String] as? UInt32, flags & 0x10000 != 0 else { throw HelperFailure.rejected(L("应用需要启用 hardened runtime 后才能安装助手。", "The app needs the hardened runtime enabled to install the helper.")) }
         return text as String
     }
 
@@ -153,7 +154,7 @@ public struct HelperInstallation {
     }
 
     private func checkedLabel() throws -> String {
-        guard label.range(of: "^[A-Za-z0-9.-]+$", options: .regularExpression) != nil else { throw HelperFailure.rejected("助手标识非法。") }
+        guard label.range(of: "^[A-Za-z0-9.-]+$", options: .regularExpression) != nil else { throw HelperFailure.rejected(L("助手标识非法。", "Invalid helper label.")) }
         return label
     }
 
@@ -192,8 +193,8 @@ public struct HelperInstallation {
         while task.isRunning && ProcessInfo.processInfo.systemUptime < deadline { Thread.sleep(forTimeInterval: 0.05) }
         if task.isRunning {
             kill(task.processIdentifier, SIGKILL)
-            throw HelperFailure.rejected("管理员授权超过 60 秒，已取消等待；请检查助手状态后重试。")
+            throw HelperFailure.rejected(L("管理员授权超过 60 秒，已取消等待；请检查助手状态后重试。", "Administrator authorization took longer than 60 seconds and was abandoned. Check the helper status and try again."))
         }
-        guard task.terminationStatus == 0 else { throw HelperFailure.rejected("管理员授权被取消或助手安装失败。") }
+        guard task.terminationStatus == 0 else { throw HelperFailure.rejected(L("管理员授权被取消或助手安装失败。", "Administrator authorization was canceled or the helper installation failed.")) }
     }
 }

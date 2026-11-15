@@ -1,5 +1,6 @@
 import DisplayPrivate
 import Foundation
+import MeridianLocalization
 
 /// One DDC/CI device behind an IOAVService. All I2C traffic serializes on a
 /// dedicated queue with bounded retries and pacing: repeated
@@ -24,11 +25,11 @@ public final class DDCDevice {
         public var errorDescription: String? {
             switch self {
             case .writeFailed(let attempts, let status):
-                return "DDC 写入失败（尝试 \(attempts) 次，IOKit \(status)）。"
+                return L("DDC 写入失败（尝试 \(attempts) 次，IOKit \(status)）。", "DDC write failed (\(attempts) attempts, IOKit \(status)).")
             case .readFailed(let attempts):
-                return "DDC 读取失败（尝试 \(attempts) 次）。"
+                return L("DDC 读取失败（尝试 \(attempts) 次）。", "DDC read failed (\(attempts) attempts).")
             case .invalidReply:
-                return "DDC 应答校验失败。"
+                return L("DDC 应答校验失败。", "DDC reply checksum failed.")
             }
         }
     }

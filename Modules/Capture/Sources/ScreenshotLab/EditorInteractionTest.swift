@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 enum EditorInteractionTest {
     @MainActor
@@ -140,9 +141,9 @@ enum EditorInteractionTest {
             let sizingControls = views.compactMap { $0 as? SizeTrackControl }
             record("size.noPopup", !views.contains { $0 is NSPopUpButton })
             for (tool, label, expected) in [
-                (AnnotationTool.mosaic, "马赛克笔刷直径", CGFloat(128)),
-                (.pen, "标注线宽", CGFloat(32)),
-                (.text, "文字字号", CGFloat(64))
+                (AnnotationTool.mosaic, L("马赛克笔刷直径", "Pixelate brush diameter"), CGFloat(128)),
+                (.pen, L("标注线宽", "Line width"), CGFloat(32)),
+                (.text, L("文字字号", "Font size"), CGFloat(64))
             ] {
                 canvas.tool = tool
                 content.layoutSubtreeIfNeeded()
@@ -172,8 +173,8 @@ enum EditorInteractionTest {
                     record("size.\(label).dragFollows", abs(track.selectedPosition - 2.35) < 0.01
                         && abs(track.displayedPosition - 2.35) < 0.01)
                     let interpolated = track.values[2] + (track.values[3] - track.values[2]) * 0.35
-                    let actualMiddle = label == "马赛克笔刷直径" ? canvas.mosaicBrushSize
-                        : label == "文字字号" ? canvas.textFontSize : canvas.strokeWidth
+                    let actualMiddle = tool == .mosaic ? canvas.mosaicBrushSize
+                        : tool == .text ? canvas.textFontSize : canvas.strokeWidth
                     record("size.\(label).continuousSize", abs(actualMiddle - interpolated) < 0.01)
                     track.mouseUp(with: mouse(.leftMouseUp, at: middle, window: window))
                     record("size.\(label).releaseKeepsSize", abs(track.displayedPosition - 2.35) < 0.01)
@@ -184,8 +185,8 @@ enum EditorInteractionTest {
                     track.mouseDown(with: mouse(.leftMouseDown, at: dragStart, window: window))
                     track.mouseDragged(with: mouse(.leftMouseDragged, at: dragEnd, window: window))
                     track.mouseUp(with: mouse(.leftMouseUp, at: dragEnd, window: window))
-                    let actual = label == "马赛克笔刷直径" ? canvas.mosaicBrushSize
-                        : label == "文字字号" ? canvas.textFontSize : canvas.strokeWidth
+                    let actual = tool == .mosaic ? canvas.mosaicBrushSize
+                        : tool == .text ? canvas.textFontSize : canvas.strokeWidth
                     record("size.\(label).dragUpdatesCanvas", actual == expected && !track.isHidden)
                     record("size.\(label).previewInside", track.trackWidth == 2
                         && track.bounds.contains(track.previewFrame))
@@ -203,7 +204,7 @@ enum EditorInteractionTest {
                 record("size.arrow.threePresets", !presets.isHidden
                     && presets.lineWidths == [2, 4, 8] && presets.headSizes == [12, 24, 40])
                 record("size.arrow.noSlider", !sizingControls.contains {
-                    $0.accessibilityLabel() == "箭头大小"
+                    $0.accessibilityLabel() == L("箭头大小", "Arrow size")
                 })
                 for (index, button) in presets.buttons.enumerated() {
                     button.performClick(nil)
@@ -266,7 +267,7 @@ enum EditorInteractionTest {
             content.layoutSubtreeIfNeeded()
             if let chips = views.compactMap({ $0 as? PresetChipControl }).first {
                 record("blur.strengthOptions", !chips.isHidden
-                    && chips.titles == ["弱", "中", "强"] && chips.buttons.count == 3)
+                    && chips.titles == [L("弱", "Low"), L("中", "Medium"), L("强", "High")] && chips.buttons.count == 3)
                 chips.buttons[2].performClick(nil)
                 record("blur.strongSetsRadius", chips.selectedIndex == 2 && canvas.blurRadius == 36)
                 chips.buttons[0].performClick(nil)

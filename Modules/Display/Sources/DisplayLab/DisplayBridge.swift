@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import MeridianLocalization
 @_exported import DisplayCore
 
 /// 供宿主进程内直接使用的类型化接口：亮度、分辨率与刷新率、HDR、虚拟屏与 HiDPI 档位。
@@ -119,13 +120,13 @@ public enum DisplayBridgeError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .displayNotFound: return "找不到该显示器。"
-        case .nativeModeUnknown: return "无法确定原生分辨率。"
-        case .noHiDPIVariant: return "这个分辨率没有对应的 HiDPI / 普通模式。"
+        case .displayNotFound: return L("找不到该显示器。", "Display not found.")
+        case .nativeModeUnknown: return L("无法确定原生分辨率。", "Couldn't determine the native resolution.")
+        case .noHiDPIVariant: return L("这个分辨率没有对应的 HiDPI / 普通模式。", "This resolution has no matching HiDPI / standard mode.")
         case .unsupportedMode(let mode):
-            return "显示器没有 \(Int(mode.refreshRate.rounded()))Hz 下与 \(mode.pixelWidth)×\(mode.pixelHeight) 同比例的刷新时序，切过去会把画面压进别的分辨率。已阻止。"
+            return L("显示器没有 \(Int(mode.refreshRate.rounded()))Hz 下与 \(mode.pixelWidth)×\(mode.pixelHeight) 同比例的刷新时序，切过去会把画面压进别的分辨率。已阻止。", "The display has no \(Int(mode.refreshRate.rounded()))Hz timing with the same aspect ratio as \(mode.pixelWidth)×\(mode.pixelHeight); switching would squeeze the image into another resolution. Blocked.")
         case .displayMirrored:
-            return "这块屏幕正在镜像显示，切换模式会同时影响被镜像的屏幕。请先关闭镜像再切换。"
+            return L("这块屏幕正在镜像显示，切换模式会同时影响被镜像的屏幕。请先关闭镜像再切换。", "This display is mirroring, so changing its mode would also affect the mirrored display. Turn off mirroring before switching.")
         }
     }
 }

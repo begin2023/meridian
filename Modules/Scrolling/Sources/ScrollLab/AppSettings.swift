@@ -163,6 +163,8 @@ final class AppSettings {
                 "bundlePath": exception.bundlePath,
                 "executablePath": exception.executablePath,
                 "inherit": exception.inherit,
+                "reverseMode": exception.reverseMode.rawValue,
+                "smoothMode": exception.smoothMode.rawValue,
                 "reverse": exception.reverse,
                 "reverseVertical": exception.reverseVertical,
                 "reverseHorizontal": exception.reverseHorizontal,
@@ -199,13 +201,30 @@ final class AppSettings {
     }
 }
 
-/// 单个例外应用：默认继承全局设置，可单独覆盖。
+/// 按应用覆盖某一项开关：跟随全局、强制开启或强制关闭。
+enum ScrollOverride: String, Codable, CaseIterable {
+    case global, on, off
+
+    func resolve(global value: Bool) -> Bool {
+        switch self {
+        case .global: return value
+        case .on: return true
+        case .off: return false
+        }
+    }
+}
+
+/// 单个例外应用。反向与平滑各自可以跟随全局或单独开关，互不牵连，
+/// 也不受全局“反向”“平滑”开关影响；`inherit` 只决定方向轴与步长/速度/过渡
+/// 这些手感参数是否沿用全局值。
 struct AppException: Codable, Equatable, Identifiable {
     var id: String
     var name: String
     var bundlePath: String
     var executablePath: String
     var inherit: Bool
+    var reverseMode: ScrollOverride
+    var smoothMode: ScrollOverride
     var reverse: Bool
     var reverseVertical: Bool
     var reverseHorizontal: Bool
@@ -230,13 +249,17 @@ struct AppException: Codable, Equatable, Identifiable {
         smoothHorizontal: Bool = true,
         step: Double = AppSettings.defaultStep,
         speed: Double = AppSettings.defaultSpeed,
-        duration: Double = AppSettings.defaultDuration
+        duration: Double = AppSettings.defaultDuration,
+        reverseMode: ScrollOverride? = nil,
+        smoothMode: ScrollOverride? = nil
     ) {
         self.id = id
         self.name = name
         self.bundlePath = bundlePath
         self.executablePath = executablePath
         self.inherit = inherit
+        self.reverseMode = reverseMode ?? Self.legacyMode(inherit: inherit, value: reverse)
+        self.smoothMode = smoothMode ?? Self.legacyMode(inherit: inherit, value: smooth)
         self.reverse = reverse
         self.reverseVertical = reverseVertical
         self.reverseHorizontal = reverseHorizontal
@@ -246,5 +269,38 @@ struct AppException: Codable, Equatable, Identifiable {
         self.step = step
         self.speed = speed
         self.duration = duration
+    }
+
+    /// 旧版本只有一个 `inherit`：继承时两项都跟随全局，否则按 reverse/smooth 固定开关。
+    private static func legacyMode(inherit: Bool, value: Bool) -> ScrollOverride {
+        inherit ? .global : (value ? .on : .off)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, bundlePath, executablePath, inherit, reverseMode, smoothMode
+        case reverse, reverseVertical, reverseHorizontal, smooth, smoothVertical, smoothHorizontal
+        case step, speed, duration
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        bundlePath = try c.decode(String.self, forKey: .bundlePath)
+        executablePath = try c.decode(String.self, forKey: .executablePath)
+        inherit = try c.decode(Bool.self, forKey: .inherit)
+        reverse = try c.decode(Bool.self, forKey: .reverse)
+        reverseVertical = try c.decode(Bool.self, forKey: .reverseVertical)
+        reverseHorizontal = try c.decode(Bool.self, forKey: .reverseHorizontal)
+        smooth = try c.decode(Bool.self, forKey: .smooth)
+        smoothVertical = try c.decode(Bool.self, forKey: .smoothVertical)
+        smoothHorizontal = try c.decode(Bool.self, forKey: .smoothHorizontal)
+        step = try c.decode(Double.self, forKey: .step)
+        speed = try c.decode(Double.self, forKey: .speed)
+        duration = try c.decode(Double.self, forKey: .duration)
+        reverseMode = try c.decodeIfPresent(ScrollOverride.self, forKey: .reverseMode)
+            ?? Self.legacyMode(inherit: inherit, value: reverse)
+        smoothMode = try c.decodeIfPresent(ScrollOverride.self, forKey: .smoothMode)
+            ?? Self.legacyMode(inherit: inherit, value: smooth)
     }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 /// 例外应用编辑弹窗：继承开关 + 反向/平滑覆盖 + 三滑杆。
 final class ExceptionEditorController: NSWindowController {
@@ -7,13 +8,13 @@ final class ExceptionEditorController: NSWindowController {
     private var exceptionIndex: Int
     private let settings = AppSettings.shared
 
-    private let inheritCheckbox = NSButton(checkboxWithTitle: "继承全局设置", target: nil, action: nil)
-    private let reverseCheckbox = NSButton(checkboxWithTitle: "反向滚轮", target: nil, action: nil)
-    private let reverseVerticalCheckbox = NSButton(checkboxWithTitle: "垂直", target: nil, action: nil)
-    private let reverseHorizontalCheckbox = NSButton(checkboxWithTitle: "水平", target: nil, action: nil)
-    private let smoothCheckbox = NSButton(checkboxWithTitle: "平滑滚动", target: nil, action: nil)
-    private let smoothVerticalCheckbox = NSButton(checkboxWithTitle: "垂直", target: nil, action: nil)
-    private let smoothHorizontalCheckbox = NSButton(checkboxWithTitle: "水平", target: nil, action: nil)
+    private let inheritCheckbox = NSButton(checkboxWithTitle: L("继承全局设置", "Use global settings"), target: nil, action: nil)
+    private let reverseCheckbox = NSButton(checkboxWithTitle: L("反向滚轮", "Reverse Scroll Wheel"), target: nil, action: nil)
+    private let reverseVerticalCheckbox = NSButton(checkboxWithTitle: L("垂直", "Vertical"), target: nil, action: nil)
+    private let reverseHorizontalCheckbox = NSButton(checkboxWithTitle: L("水平", "Horizontal"), target: nil, action: nil)
+    private let smoothCheckbox = NSButton(checkboxWithTitle: L("平滑滚动", "Smooth Scrolling"), target: nil, action: nil)
+    private let smoothVerticalCheckbox = NSButton(checkboxWithTitle: L("垂直", "Vertical"), target: nil, action: nil)
+    private let smoothHorizontalCheckbox = NSButton(checkboxWithTitle: L("水平", "Horizontal"), target: nil, action: nil)
     private let stepSlider = NSSlider(value: 33.6, minValue: 5, maxValue: 200, target: nil, action: nil)
     private let speedSlider = NSSlider(value: 2.7, minValue: 1, maxValue: 10, target: nil, action: nil)
     private let durationSlider = NSSlider(value: 4.35, minValue: 0, maxValue: 5, target: nil, action: nil)
@@ -41,7 +42,7 @@ final class ExceptionEditorController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "例外设置"
+        window.title = L("例外设置", "Exception Settings")
         window.isReleasedWhenClosed = false
         super.init(window: window)
         buildInterface()
@@ -100,9 +101,9 @@ final class ExceptionEditorController: NSWindowController {
             NSStackView(views: []),
             reverseRow,
             smoothRow,
-            sliderRow(stepSlider, stepLabel, title: "步长"),
-            sliderRow(speedSlider, speedLabel, title: "速度"),
-            sliderRow(durationSlider, durationLabel, title: "时长"),
+            sliderRow(stepSlider, stepLabel, title: L("步长", "Step")),
+            sliderRow(speedSlider, speedLabel, title: L("速度", "Speed")),
+            sliderRow(durationSlider, durationLabel, title: L("时长", "Duration")),
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -156,6 +157,9 @@ final class ExceptionEditorController: NSWindowController {
             exception.smoothVertical = smoothVerticalCheckbox.state == .on
             exception.smoothHorizontal = smoothHorizontalCheckbox.state == .on
         }
+        // 独立版编辑器沿用一个“继承”开关：继承时两项跟随全局，否则按复选框单独开关。
+        exception.reverseMode = exception.inherit ? .global : (exception.reverse ? .on : .off)
+        exception.smoothMode = exception.inherit ? .global : (exception.smooth ? .on : .off)
         commit(exception)
     }
 

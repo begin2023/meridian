@@ -1,6 +1,7 @@
 import AppKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
+import MeridianLocalization
 
 enum AnnotationTool: String, CaseIterable {
     case select
@@ -31,7 +32,15 @@ enum AnnotationTool: String, CaseIterable {
         }
     }
 
-    var label: String { self == .select ? "选择" : tooltip }
+    /// Short label under the toolbar icon; the tooltip carries the full name.
+    var label: String {
+        switch self {
+        case .select: return L("选择", "Select")
+        case .rectangle: return L("矩形", "Rect")
+        case .highlighter: return L("荧光笔", "Highlight")
+        default: return tooltip
+        }
+    }
 
     var icon: NSImage? {
         guard self == .text || self == .blur else { return AppTheme.symbol(symbol, size: 17) }
@@ -66,17 +75,17 @@ enum AnnotationTool: String, CaseIterable {
 
     var tooltip: String {
         switch self {
-        case .select: return "选择与移动"
-        case .rectangle: return "矩形"
-        case .ellipse: return "椭圆"
-        case .line: return "直线"
-        case .arrow: return "箭头"
-        case .pen: return "画笔"
-        case .highlighter: return "荧光笔"
-        case .text: return "文字"
-        case .mosaic: return "马赛克"
-        case .blur: return "模糊"
-        case .crop: return "裁剪"
+        case .select: return L("选择与移动", "Select and Move")
+        case .rectangle: return L("矩形", "Rectangle")
+        case .ellipse: return L("椭圆", "Ellipse")
+        case .line: return L("直线", "Line")
+        case .arrow: return L("箭头", "Arrow")
+        case .pen: return L("画笔", "Pen")
+        case .highlighter: return L("荧光笔", "Highlighter")
+        case .text: return L("文字", "Text")
+        case .mosaic: return L("马赛克", "Pixelate")
+        case .blur: return L("模糊", "Blur")
+        case .crop: return L("裁剪", "Crop")
         }
     }
 
@@ -98,12 +107,12 @@ enum AnnotationTool: String, CaseIterable {
 
     var instructions: String {
         switch self {
-        case .select: return "点击选择标注，拖动移动 · Delete 删除 · Esc 取消选择，再按退出"
-        case .text: return "点击图片添加文字 · 回车完成 · Esc 取消输入"
-        case .crop: return "拖出保留区域后松开鼠标裁剪 · ⌘Z 撤销"
-        case .mosaic: return "拖动笔刷调范围，点击纹理选颗粒 · 在图片上涂抹 · ⌘Z 撤销"
-        case .blur: return "拖出矩形区域做高斯模糊，强度可选弱/中/强 · ⌘Z 撤销"
-        default: return "在图片上拖动绘制\(tooltip) · Esc 返回选择工具，再按退出"
+        case .select: return L("点击选择标注，拖动移动 · Delete 删除 · Esc 取消选择，再按退出", "Click to select an annotation, drag to move · Delete removes it · Esc deselects, press again to exit")
+        case .text: return L("点击图片添加文字 · 回车完成 · Esc 取消输入", "Click the image to add text · Return to finish · Esc to cancel")
+        case .crop: return L("拖出保留区域后松开鼠标裁剪 · ⌘Z 撤销", "Drag the area to keep and release to crop · ⌘Z to undo")
+        case .mosaic: return L("拖动笔刷调范围，点击纹理选颗粒 · 在图片上涂抹 · ⌘Z 撤销", "Drag the brush slider to set its size, click a texture to pick the grain · Paint over the image · ⌘Z to undo")
+        case .blur: return L("拖出矩形区域做高斯模糊，强度可选弱/中/强 · ⌘Z 撤销", "Drag a rectangle to apply a Gaussian blur, strength Low/Medium/High · ⌘Z to undo")
+        default: return L("在图片上拖动绘制\(tooltip) · Esc 返回选择工具，再按退出", "Drag on the image to draw · Esc returns to Select, press again to exit")
         }
     }
 }
@@ -262,7 +271,7 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
     init(image: CGImage) {
         self.image = image
         super.init(frame: .zero)
-        setAccessibilityLabel("截图标注画布")
+        setAccessibilityLabel(L("截图标注画布", "Screenshot annotation canvas"))
         wantsLayer = true
         layer?.backgroundColor = NSColor(
             calibratedWhite: 0.095,
@@ -776,7 +785,7 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
             color: NSColor.systemGreen,
             lineWidth: 4
         )
-        text.text = "这是可二次编辑的文字标注"
+        text.text = L("这是可二次编辑的文字标注", "This text annotation stays editable")
         text.fontSize = 34
 
         let mosaicRect = CGRect(x: 150, y: 650, width: 620, height: 130)
@@ -1284,7 +1293,7 @@ final class AnnotationCanvasView: NSView, NSTextFieldDelegate {
                 height: 32
             )
         )
-        field.placeholderString = "输入文字，回车完成"
+        field.placeholderString = L("输入文字，回车完成", "Type text, press Return to finish")
         field.font = .systemFont(ofSize: 15, weight: .medium)
         field.textColor = strokeColor
         field.backgroundColor = NSColor.black.withAlphaComponent(0.72)

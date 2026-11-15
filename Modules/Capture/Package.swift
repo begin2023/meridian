@@ -2,8 +2,9 @@
 import PackageDescription
 let package = Package(name: "Capture", platforms: [.macOS(.v14)],
     products: [.library(name: "ScreenshotLabKit", targets: ["ScreenshotLabKit"])],
+    dependencies: [.package(path: "../Localization")],
     targets: [
-        .target(name: "ScreenshotLabKit", path: "Sources/ScreenshotLab", linkerSettings: [
+        .target(name: "ScreenshotLabKit", dependencies: [.product(name: "MeridianLocalization", package: "Localization")], path: "Sources/ScreenshotLab", linkerSettings: [
             .linkedFramework("Carbon"), .linkedFramework("ScreenCaptureKit"),
             .linkedFramework("ServiceManagement"), .linkedFramework("Vision"),
             .linkedFramework("VisionKit"), .linkedFramework("ImageIO")]),

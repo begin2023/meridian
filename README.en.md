@@ -13,7 +13,9 @@ Capture & OCR · Display control · Fans & thermals · Scroll enhancement · Sys
 ![Swift](https://img.shields.io/badge/Swift-6.2%2B-F06A36)
 ![License](https://img.shields.io/badge/license-0BSD-166978)
 
-[Quick start](#quick-start) · [User guide](docs/USER_GUIDE.en.md) · [FAQ](docs/FAQ.en.md) · [Development](docs/DEVELOPMENT.md)
+[Quick start](#quick-start) · [Screenshots](#screenshots) · [Examples](#examples) · [User guide](docs/USER_GUIDE.en.md) · [FAQ](docs/FAQ.en.md) · [Development](docs/DEVELOPMENT.md)
+
+<img src="docs/images/overview-en.png" alt="Meridian overview: five feature modules with live status" width="760">
 
 </div>
 
@@ -21,7 +23,7 @@ Meridian means "meridian": a reference line for observing and calibrating the st
 
 The interface is built with SwiftUI and AppKit and supports light, dark, and system appearance. Features run in the same application process. Display overrides and fan writes that require administrator access are handled by a separate helper.
 
-> **Project status: 1.0.1.** The GitHub build is an unnotarized Apple Silicon build, so macOS may require the user to allow it manually. Developer ID notarization and testing on additional Mac models have not been completed. Download and signing details are defined by the corresponding [Release](https://github.com/begin2023/meridian/releases). See the release checklist in [docs/RELEASING.md](docs/RELEASING.md) for internal details.
+> **Project status: 1.1.0.** The GitHub build is an unnotarized Apple Silicon build, so macOS may require the user to allow it manually. Developer ID notarization and testing on additional Mac models have not been completed. Download and signing details are defined by the corresponding [Release](https://github.com/begin2023/meridian/releases). See the release checklist in [docs/RELEASING.md](docs/RELEASING.md) for internal details.
 
 ## Features
 
@@ -30,11 +32,56 @@ The interface is built with SwiftUI and AppKit and supports light, dark, and sys
 | Capture & OCR | Area, window, full-screen, and timed captures; annotations; on-device text recognition; pinned screenshots; history; area GIF recording up to 30 seconds |
 | Displays | External display brightness, software dimming, HiDPI resolution sizes and refresh rate, HDR (SDR brightness and brightness boost), virtual displays; availability depends on the display and macOS |
 | Fans & thermals | Fan speed and readable temperatures; system auto, fixed RPM, temperature curve, and full-speed presets; control requires the administrator helper and compatible hardware |
-| Scroll enhancement | Smooth scrolling, direction reversal, per-app profiles, and temporary pause |
+| Scroll enhancement | Smooth scrolling, direction reversal, per-app smoothing and reversing that override the global switches, and temporary pause |
 | System monitoring | CPU, memory, network, disk, and process rankings; menu bar widgets can be enabled independently |
-| General | Global shortcuts, launch at login, permission status, and appearance settings |
+| General | Global shortcuts, launch at login, permission status, appearance settings, and an English or Simplified Chinese interface |
 
 Temperature labels use a built-in candidate detection set and do not yet represent a verified per-model sensor database. Macs without fans do not expose fan controls, and unsupported display features may be unavailable.
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Per-app scrolling**
+
+Each app's **Smooth** and **Reverse** can be set to **Global**, **On**, or **Off**. On and Off ignore the global switches.
+
+<img src="docs/images/pointer-rules-en.png" alt="Per-App Settings: smoothing off for Maps, reversing off for Chess">
+
+</td>
+<td width="50%" valign="top">
+
+**General settings**
+
+Appearance, language (System / 简体中文 / English), launch at login, and feature switches in one place.
+
+<img src="docs/images/general-en.png" alt="General page: appearance, language, launch at login, and feature switches">
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Screenshot annotation**
+
+Press `E` after selecting an area to annotate with shapes, arrows, text, pixelate, blur, and crop, then pin, extract text, save, or copy.
+
+<img src="docs/images/editor-zh.png" alt="Screenshot editor with rectangle and arrow annotations (Chinese interface)">
+
+</td>
+<td width="50%" valign="top">
+
+**简体中文界面**
+
+The same per-app settings in the Chinese interface.
+
+<img src="docs/images/pointer-rules-zh.png" alt="Per-app settings in the Chinese interface">
+
+</td>
+</tr>
+</table>
 
 ## Requirements
 
@@ -62,6 +109,41 @@ Signing, notarization, architecture, and OS requirements are defined by each Rel
 5. **Change settings:** right-click the menu bar icon to open the main window, then press `⌘,` to open General settings.
 
 These are the default shortcuts for a fresh installation. Upgrading from an older local build preserves existing settings. Pin, scroll pause, and control-center shortcuts can also be customized.
+
+## Examples
+
+**Annotate a screenshot and send it to a colleague**
+
+1. Press `⌘⇧2` (or your capture shortcut) and drag out an area. Drag the edges and corners to resize it, or drag inside to move it.
+2. Press `E` to open the editor. Use `R` for a rectangle, `A` for an arrow, and `T` for text; cover sensitive details with Pixelate or Blur.
+3. Press `⌘C` and paste into your chat app, or press `⌘S` to save. In the editor, `⌘Q` or `Esc` closes only the editor, not Meridian.
+
+**Pull text out of an image**
+
+Press `⌘⇧1` and drag over the text. When you release the mouse, the result appears beside the selection; click **Copy**. Recognition runs entirely on your Mac.
+
+**Keep a reference on screen**
+
+After capturing, click **Pin**. The selection floats above all windows: scroll to zoom, drag to move, and double-click or press `Esc` to close it.
+
+**Reverse the wheel everywhere except in games**
+
+On the **Mouse Scrolling** page, turn on **Reverse Wheel Direction**. Then add the game under **Per-App Settings** and set its **Reverse** to **Off**. If a design app shouldn't be smoothed, set its **Smooth** to **Off**. Every other app keeps the global settings.
+
+**Switch to English**
+
+Choose **English** under **General › Appearance & Startup › Language**. The main window and control center switch immediately; screenshot editor and pin windows that are already open use English the next time they open.
+
+**Control Meridian from links or Shortcuts**
+
+```bash
+open "meridian://capture"           # Capture an area
+open "meridian://open/pointer"      # Open Mouse Scrolling settings
+open "meridian://resolution/native" # Restore the external display's native resolution
+open "meridian://fan/auto"          # Hand the fans back to the system
+```
+
+Links that change hardware or capture the screen ask for confirmation by default; adjust this under **General › External Links**.
 
 ## Everyday use
 

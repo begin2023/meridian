@@ -1,5 +1,8 @@
 import AppKit
 import FanControlLabKit
+import MeridianLocalization
+
+private let sensorWindowTitle = L("传感器详情", "Sensor Details")
 
 let suite = "app.meridian.thermal.kit-smoke.\(getpid())"
 setenv("MERIDIAN_MODULE_SUITE", suite, 1)
@@ -182,7 +185,7 @@ MainActor.assumeIsolated {
           preferencesRouted == 1,
           NSApp.mainMenu == nil,
           let sensorWindow = NSApp.windows.first(where: {
-              $0.isVisible && $0.title == "传感器详情"
+              $0.isVisible && $0.title == sensorWindowTitle
           }),
           module.summary()["sensorWindowVisible"] as? Bool == true else {
         failure = "showMainWindow did not create the read-only sensor window"
@@ -194,9 +197,9 @@ MainActor.assumeIsolated {
     RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
     guard showAll["ok"] as? Bool == true,
           preferencesRouted == 1,
-          NSApp.windows.filter({ $0.isVisible && $0.title == "传感器详情" }).count == 1,
+          NSApp.windows.filter({ $0.isVisible && $0.title == sensorWindowTitle }).count == 1,
           let reopened = NSApp.windows.first(where: {
-              $0.isVisible && $0.title == "传感器详情"
+              $0.isVisible && $0.title == sensorWindowTitle
           }),
           ObjectIdentifier(reopened) == sensorWindowID else {
         failure = "showAllWindows must reuse the singleton sensor window"
@@ -206,7 +209,7 @@ MainActor.assumeIsolated {
     _ = module.execute(command: "showPreferences", payload: [:])
     guard preferencesRouted == 2,
           NSApp.windows.filter(\.isVisible).count == 1,
-          NSApp.windows.filter({ $0.isVisible && $0.title == "传感器详情" }).count == 1 else {
+          NSApp.windows.filter({ $0.isVisible && $0.title == sensorWindowTitle }).count == 1 else {
         failure = "showPreferences must stay centralized without opening a local settings window"
         return
     }

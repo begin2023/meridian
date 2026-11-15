@@ -1,5 +1,6 @@
 import AppKit
 import ImageIO
+import MeridianLocalization
 import UniformTypeIdentifiers
 
 struct ScreenshotHistoryEntry: Identifiable, Equatable {
@@ -22,15 +23,15 @@ enum ScreenshotHistoryError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .cannotCreateDirectory:
-            return "无法创建截图历史目录。"
+            return L("无法创建截图历史目录。", "Couldn’t create the screenshot history folder.")
         case .imageEncodingFailed:
-            return "无法写入截图历史图片。"
+            return L("无法写入截图历史图片。", "Couldn’t write the history image.")
         case .thumbnailEncodingFailed:
-            return "无法生成截图历史缩略图。"
+            return L("无法生成截图历史缩略图。", "Couldn’t create the history thumbnail.")
         case .indexEncodingFailed:
-            return "无法写入截图历史索引。"
+            return L("无法写入截图历史索引。", "Couldn’t write the history index.")
         case .imageDecodingFailed:
-            return "无法读取截图历史图片。"
+            return L("无法读取截图历史图片。", "Couldn’t read the history image.")
         }
     }
 }

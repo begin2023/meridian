@@ -1,4 +1,5 @@
 import Foundation
+import MeridianLocalization
 
 // IP 归属地在线查询:ipinfo.io(免费无鉴权),失败退回 freeipapi。
 // 每次启动查一次;接口/IP 变化时由 NetModule 再次触发。结果缓存,
@@ -6,7 +7,12 @@ import Foundation
 final class GeoResolver {
     static let shared = GeoResolver()
 
-    private(set) var currentText: String = "查询中…"
+    /// 弹窗展示文本：拿到结果前按当前语言显示"查询中…"/"未获取"。
+    var currentText: String {
+        resolvedText ?? (lookupFailed ? L("未获取", "Unavailable") : L("查询中…", "Looking up…"))
+    }
+    private var resolvedText: String?
+    private var lookupFailed = false
     /// 归属地服务返回的公网出口 IP;查询成功前为 nil。
     private(set) var publicIP: String?
     private var inFlight = false
@@ -14,7 +20,7 @@ final class GeoResolver {
 
     /// 测试/调试用:直接注入展示文本。
     func setDebugText(_ text: String) {
-        currentText = text
+        resolvedText = text
     }
 
     func lookupIfNeeded() {
@@ -24,11 +30,11 @@ final class GeoResolver {
             guard let self else { return }
             self.inFlight = false
             if let text {
-                self.currentText = text
+                self.resolvedText = text
                 self.publicIP = publicIP
                 self.lastCompletedKey = text
             } else if self.lastCompletedKey == nil {
-                self.currentText = "未获取"
+                self.lookupFailed = true
             }
         }
     }

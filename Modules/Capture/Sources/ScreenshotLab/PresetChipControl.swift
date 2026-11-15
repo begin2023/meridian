@@ -9,8 +9,15 @@ final class PresetChipControl: NSView {
     var onSelectionChanged: ((Int) -> Void)?
     private(set) var buttons: [PresetChipButton] = []
 
+    /// Each chip is at least 34pt, wider when a title (e.g. English) needs it.
+    private var chipWidth: CGFloat {
+        let font = AppTheme.font(ofSize: 12, weight: .medium)
+        let widest = titles.map { ($0 as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
+        return max(34, ceil(widest) + 14)
+    }
+
     override var intrinsicContentSize: NSSize {
-        NSSize(width: CGFloat(titles.count) * 34 + CGFloat(titles.count - 1) * 4, height: 24)
+        NSSize(width: CGFloat(titles.count) * chipWidth + CGFloat(titles.count - 1) * 4, height: 24)
     }
     override var acceptsFirstResponder: Bool { true }
 
@@ -68,7 +75,7 @@ final class PresetChipControl: NSView {
 
     override func layout() {
         super.layout()
-        let size = NSSize(width: 34, height: 24)
+        let size = NSSize(width: chipWidth, height: 24)
         for (index, button) in buttons.enumerated() {
             button.frame = CGRect(
                 x: CGFloat(index) * (size.width + 4),

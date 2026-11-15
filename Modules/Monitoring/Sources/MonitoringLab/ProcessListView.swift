@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 // 弹窗里的"占用最高的进程"区块:标题 + 固定行数的图标/名称/数值行。
 final class ProcessListView: NSView {
@@ -147,14 +148,14 @@ final class DiskProcessListView: NSView {
         header.arrangedSubviews[0].widthAnchor.constraint(equalToConstant: 14).isActive = true
         header.arrangedSubviews[0].heightAnchor.constraint(equalToConstant: 1).isActive = true
 
-        let nameHeader = NSTextField(labelWithString: "进程")
+        let nameHeader = NSTextField(labelWithString: L("进程", "Process"))
         nameHeader.font = AppTheme.font(ofSize: 10)
         nameHeader.textColor = AppTheme.secondaryText.withAlphaComponent(0.7)
-        let readHeader = NSTextField(labelWithString: "读取")
+        let readHeader = NSTextField(labelWithString: L("读取", "Read"))
         readHeader.font = AppTheme.font(ofSize: 10)
         readHeader.textColor = NSColor(calibratedRed: 0.35, green: 0.62, blue: 1.0, alpha: 1)
         readHeader.alignment = .right
-        let writeHeader = NSTextField(labelWithString: "写入")
+        let writeHeader = NSTextField(labelWithString: L("写入", "Write"))
         writeHeader.font = AppTheme.font(ofSize: 10)
         writeHeader.textColor = NSColor(calibratedRed: 1.0, green: 0.55, blue: 0.35, alpha: 1)
         writeHeader.alignment = .right

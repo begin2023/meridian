@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 /// Owns the local SMC read session and AppKit surfaces.
 ///
@@ -151,13 +152,12 @@ final class AppDelegate: NSObject {
     private func presentStartupError(_ error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "无法连接 SMC"
-        alert.informativeText = """
-        \(error.localizedDescription)
-
-        FanControlLab 将继续以只读模式运行，不会安装助手或写入风扇控制。
-        """
-        alert.addButton(withTitle: "继续")
+        alert.messageText = L("无法连接 SMC", "Can’t Connect to SMC")
+        alert.informativeText = error.localizedDescription + "\n\n" + L(
+            "FanControlLab 将继续以只读模式运行，不会安装助手或写入风扇控制。",
+            "FanControlLab will keep running in read-only mode. It won’t install the helper or write fan control."
+        )
+        alert.addButton(withTitle: L("继续", "Continue"))
         alert.runModal()
     }
 }

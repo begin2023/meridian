@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 /// Three discrete arrow presets. Each preview uses the real shaft and head
 /// proportions, while the selected preset emits both values together.
@@ -14,11 +15,11 @@ final class ArrowPresetControl: NSView {
     var onSelectionChanged: ((CGFloat, CGFloat) -> Void)?
     private(set) var buttons: [ArrowPresetButton] = []
 
-    private let labels = ["小箭头", "中箭头", "大箭头"]
+    private let labels = [L("小箭头", "Small Arrow"), L("中箭头", "Medium Arrow"), L("大箭头", "Large Arrow")]
     private let helpTexts = [
-        "较细的线条和较小的箭头",
-        "标准线条和箭头",
-        "较粗的线条和较大的箭头",
+        L("较细的线条和较小的箭头", "Thinner line and smaller head"),
+        L("标准线条和箭头", "Standard line and head"),
+        L("较粗的线条和较大的箭头", "Thicker line and larger head"),
     ]
     private let buttonSize = NSSize(width: 36, height: 32)
     private let spacing: CGFloat = 2
@@ -92,9 +93,9 @@ final class ArrowPresetControl: NSView {
         frame.size = intrinsicContentSize
         setAccessibilityElement(true)
         setAccessibilityRole(.radioGroup)
-        setAccessibilityLabel("箭头大小")
+        setAccessibilityLabel(L("箭头大小", "Arrow size"))
         setAccessibilityValue(labels[selectedIndex])
-        toolTip = "选择小、中、大三种箭头"
+        toolTip = L("选择小、中、大三种箭头", "Choose a small, medium or large arrow")
 
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: intrinsicContentSize.width),
@@ -110,7 +111,7 @@ final class ArrowPresetControl: NSView {
             button.target = self
             button.action = #selector(optionClicked(_:))
             button.identifier = NSUserInterfaceItemIdentifier("ArrowPreset.option.\(index)")
-            button.toolTip = "\(labels[index])：\(helpTexts[index])"
+            button.toolTip = L("\(labels[index])：\(helpTexts[index])", "\(labels[index]): \(helpTexts[index])")
             button.setAccessibilityLabel(labels[index])
             button.setAccessibilityHelp(helpTexts[index])
             button.onArrowKey = { [weak self] event in self?.handleArrow(event) ?? false }

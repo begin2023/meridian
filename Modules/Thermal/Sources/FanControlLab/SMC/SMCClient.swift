@@ -1,5 +1,6 @@
 import Foundation
 import IOKit
+import MeridianLocalization
 
 enum SMCBackend: Equatable {
     /// macOS 26+ AppleSMCKeysEndpoint：selector 2 统一分发。
@@ -18,12 +19,12 @@ enum SMCError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .serviceNotFound:
-            return "未找到可用的 AppleSMC 服务"
+            return L("未找到可用的 AppleSMC 服务", "No usable AppleSMC service found")
         case .openFailed(let kr):
-            return "AppleSMC 打开失败 (kr=\(kr))"
+            return L("AppleSMC 打开失败 (kr=\(kr))", "Failed to open AppleSMC (kr=\(kr))")
         #if FAN_CONTROL_LEGACY_WRITE
         case .unsupportedWrite(let backend):
-            return "当前 SMC 后端 (\(backend)) 暂不支持写入"
+            return L("当前 SMC 后端 (\(backend)) 暂不支持写入", "The current SMC backend (\(backend)) doesn’t support writes yet")
         #endif
         }
     }

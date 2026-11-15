@@ -1,8 +1,22 @@
 import AppKit
 import Combine
+import MeridianLocalization
 import ScrollLabKit
 
-/// 一条按应用的滚动例外，与滚动模块的 AppException 字段一一对应。
+/// 按应用的单项开关：跟随全局、强制开启或强制关闭（对应模块的 ScrollOverride）。
+enum ScrollOverrideMode: String, CaseIterable, Identifiable {
+    case global, on, off
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .global: return L("跟随全局", "Global")
+        case .on: return L("开", "On")
+        case .off: return L("关", "Off")
+        }
+    }
+}
+
+/// 一条按应用的滚动规则，与滚动模块的 AppException 字段一一对应。
 struct ScrollException: Identifiable, Equatable {
     var id: String
     var name: String
@@ -11,6 +25,8 @@ struct ScrollException: Identifiable, Equatable {
     var inherit: Bool
     var reverse: Bool
     var smooth: Bool
+    var reverseMode: ScrollOverrideMode
+    var smoothMode: ScrollOverrideMode
     var step: Double
     var speed: Double
     var duration: Double
@@ -23,6 +39,9 @@ struct ScrollException: Identifiable, Equatable {
         inherit = dictionary["inherit"] as? Bool ?? true
         reverse = dictionary["reverse"] as? Bool ?? false
         smooth = dictionary["smooth"] as? Bool ?? true
+        let legacy: (Bool) -> ScrollOverrideMode = { [inherit] value in inherit ? .global : (value ? .on : .off) }
+        reverseMode = (dictionary["reverseMode"] as? String).flatMap(ScrollOverrideMode.init(rawValue:)) ?? legacy(reverse)
+        smoothMode = (dictionary["smoothMode"] as? String).flatMap(ScrollOverrideMode.init(rawValue:)) ?? legacy(smooth)
         step = dictionary["step"] as? Double ?? 33.6
         speed = dictionary["speed"] as? Double ?? 2.7
         duration = dictionary["duration"] as? Double ?? 4.35
@@ -31,8 +50,9 @@ struct ScrollException: Identifiable, Equatable {
     var dictionary: [String: Any] {
         [
             "id": id, "name": name, "bundlePath": bundlePath, "executablePath": executablePath,
-            "inherit": inherit, "reverse": reverse, "reverseVertical": true, "reverseHorizontal": true,
-            "smooth": smooth, "smoothVertical": true, "smoothHorizontal": true,
+            "inherit": inherit, "reverseMode": reverseMode.rawValue, "smoothMode": smoothMode.rawValue,
+            "reverse": reverseMode == .on, "reverseVertical": true, "reverseHorizontal": true,
+            "smooth": smoothMode != .off, "smoothVertical": true, "smoothHorizontal": true,
             "step": step, "speed": speed, "duration": duration,
         ]
     }
@@ -127,7 +147,7 @@ final class PointerModel: ObservableObject {
 
     func set(_ key: String, _ value: Any) {
         let result = module.updateSettings([key: value])
-        lastError = result["ok"] as? Bool == true ? nil : (result["message"] as? String ?? "设置未保存")
+        lastError = result["ok"] as? Bool == true ? nil : (result["message"] as? String ?? L("设置未保存", "Settings weren't saved"))
         load()
         refresh()
     }
@@ -150,7 +170,7 @@ final class PointerModel: ObservableObject {
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowsMultipleSelection = true
-        panel.prompt = "添加"
+        panel.prompt = L("添加", "Add")
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK else { return }
         var list = exceptions

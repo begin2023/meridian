@@ -3,13 +3,13 @@ import PackageDescription
 let package = Package(name: "Display", platforms: [.macOS(.v14)],
     products: [.library(name: "DisplayLabKit", targets: ["DisplayLabKit"]),
                .executable(name: "DisplayLabHelper", targets: ["DisplayLabHelper"])],
-    dependencies: [.package(path: "../PrivilegedSupport")],
+    dependencies: [.package(path: "../PrivilegedSupport"), .package(path: "../Localization")],
     targets: [
         .target(name: "BrightnessMapping", path: "Sources/BrightnessMapping"),
         .target(name: "DisplayPrivate", publicHeadersPath: "include"),
-        .target(name: "DisplayCore", dependencies: ["DisplayPrivate"], linkerSettings: [
+        .target(name: "DisplayCore", dependencies: ["DisplayPrivate", .product(name: "MeridianLocalization", package: "Localization")], linkerSettings: [
             .linkedFramework("IOKit"), .linkedFramework("CoreGraphics"), .linkedFramework("CoreDisplay")]),
-        .target(name: "DisplayLabKit", dependencies: ["DisplayCore", "BrightnessMapping", .product(name: "PrivilegedSupport", package: "PrivilegedSupport")], path: "Sources/DisplayLab", linkerSettings: [
+        .target(name: "DisplayLabKit", dependencies: ["DisplayCore", "BrightnessMapping", .product(name: "MeridianLocalization", package: "Localization"), .product(name: "PrivilegedSupport", package: "PrivilegedSupport")], path: "Sources/DisplayLab", linkerSettings: [
             .linkedFramework("AppKit"), .linkedFramework("Carbon"), .linkedFramework("ServiceManagement"), .linkedFramework("Security")]),
         .executableTarget(name: "DisplayLabHelper", dependencies: ["DisplayCore", .product(name: "PrivilegedSupport", package: "PrivilegedSupport")], linkerSettings: [
             .linkedFramework("Foundation"), .linkedFramework("Security")]),

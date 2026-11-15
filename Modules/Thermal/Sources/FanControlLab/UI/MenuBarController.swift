@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 /// 菜单栏常驻入口：转速/温度标题 + 只读传感器与中央设置入口。
 /// 菜单对象全生命周期只创建一次：结构重建只发生在 menuNeedsUpdate（即将打开），
@@ -72,7 +73,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// 菜单栏风扇图标（SF Symbol 多级回退）。
     private static func makeFanIcon() -> NSImage? {
         for name in ["fan", "fanblades", "fan.ceiling", "fan.floor"] {
-            if let base = NSImage(systemSymbolName: name, accessibilityDescription: "风扇"),
+            if let base = NSImage(systemSymbolName: name, accessibilityDescription: L("风扇", "Fan")),
                let configured = base.withSymbolConfiguration(
                    NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
                ) {
@@ -98,7 +99,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         if let fans = snapshot?.fans, !fans.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(Self.headerItem("风扇列表："))
+            menu.addItem(Self.headerItem(L("风扇列表：", "Fans:")))
             for fan in fans {
                 let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
                 item.isEnabled = false
@@ -107,7 +108,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                         return String(format: "%@　%.0f RPM", fan.name, fan.currentRPM)
                     }
                     return String(
-                        format: "%@　%.0f RPM（%.0f–%.0f）｜系统自动控制",
+                        format: L("%@　%.0f RPM（%.0f–%.0f）｜系统自动控制", "%@  %.0f RPM (%.0f–%.0f) | System Auto"),
                         fan.name, fan.currentRPM, fan.minimumRPM, fan.maximumRPM
                     )
                 }))
@@ -116,13 +117,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
 
             menu.addItem(.separator())
-            menu.addItem(Self.headerItem("只读监控 · 风扇写入未启用"))
+            menu.addItem(Self.headerItem(L("只读监控 · 风扇写入未启用", "Read-only monitoring · Fan writes disabled")))
         }
 
         menu.addItem(.separator())
 
         let mainWindow = NSMenuItem(
-            title: "传感器详情…",
+            title: L("传感器详情…", "Sensor Details…"),
             action: #selector(openMainWindow),
             keyEquivalent: "o"
         )
@@ -130,12 +131,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         mainWindow.isEnabled = true
         menu.addItem(mainWindow)
 
-        let preferences = NSMenuItem(title: "设置…", action: #selector(openPreferences), keyEquivalent: ",")
+        let preferences = NSMenuItem(title: L("设置…", "Settings…"), action: #selector(openPreferences), keyEquivalent: ",")
         preferences.target = self
         preferences.isEnabled = true
         menu.addItem(preferences)
 
-        let quit = NSMenuItem(title: "退出 FanControlLab", action: #selector(quitApplication), keyEquivalent: "q")
+        let quit = NSMenuItem(title: L("退出 FanControlLab", "Quit FanControlLab"), action: #selector(quitApplication), keyEquivalent: "q")
         quit.target = self
         quit.isEnabled = true
         menu.addItem(quit)

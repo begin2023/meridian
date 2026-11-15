@@ -2,6 +2,7 @@ import CoreGraphics
 import DisplayPrivate
 import Foundation
 import IOKit
+import MeridianLocalization
 
 public enum AVServiceError: LocalizedError {
     case noCandidate(CGDirectDisplayID)
@@ -10,9 +11,9 @@ public enum AVServiceError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .noCandidate(let identifier):
-            return "在 IO 注册表中找不到显示器 \(identifier) 对应的 AV 服务。"
+            return L("在 IO 注册表中找不到显示器 \(identifier) 对应的 AV 服务。", "No AV service found in the I/O Registry for display \(identifier).")
         case .creationFailed(let identifier):
-            return "为显示器 \(identifier) 创建 AV 服务失败。"
+            return L("为显示器 \(identifier) 创建 AV 服务失败。", "Couldn't create an AV service for display \(identifier).")
         }
     }
 }

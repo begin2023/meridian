@@ -1,4 +1,5 @@
 import Foundation
+import MeridianLocalization
 
 /// 供宿主进程内直接使用的类型化接口。
 ///
@@ -235,7 +236,8 @@ public final class ThermalEngine {
         guard let update = latestInternal else { return }
         let settings = AppSettings.shared
         let fans = update.fans.map { fan in
-            ThermalFan(index: fan.index, name: fan.name == "风扇 \(fan.index)" ? "风扇 \(fan.index + 1)" : fan.name,
+            ThermalFan(index: fan.index, name: (fan.name == "风扇 \(fan.index)" || fan.name == "Fan \(fan.index)")
+                           ? L("风扇 \(fan.index + 1)", "Fan \(fan.index + 1)") : fan.name,
                        minimumRPM: fan.minimumRPM,
                        currentRPM: fan.currentRPM, maximumRPM: fan.maximumRPM,
                        targetRPM: fan.targetRPM, mode: ThermalFanMode(settings.fanMode(for: fan.index)),

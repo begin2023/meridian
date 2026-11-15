@@ -1,5 +1,6 @@
 import AppKit
 import DisplayLabKit
+import MeridianLocalization
 import SwiftUI
 
 @MainActor
@@ -81,7 +82,7 @@ private struct BrightnessHUDView: View {
                         .controlSize(.small)
                         .frame(height: 14)
                         .tint(.yellow)
-                        .accessibilityLabel("\(value.name) 亮度")
+                        .accessibilityLabel(L("\(value.name) 亮度", "\(value.name) brightness"))
                         .accessibilityValue("\(Int((value.fraction * 100).rounded()))%")
                     }
                 }

@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = AppSettings.shared
@@ -157,12 +158,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusLine.isEnabled = false
         menu.addItem(statusLine)
 
-        let toggle = NSMenuItem(title: "启用 ScrollLab", action: #selector(toggleEnabled), keyEquivalent: "")
+        let toggle = NSMenuItem(title: L("启用 ScrollLab", "Enable ScrollLab"), action: #selector(toggleEnabled), keyEquivalent: "")
         toggle.target = self
         toggle.state = settings.enabled ? .on : .off
         menu.addItem(toggle)
 
-        let reverse = NSMenuItem(title: "反向滚轮", action: #selector(toggleReverse), keyEquivalent: "")
+        let reverse = NSMenuItem(title: L("反向滚轮", "Reverse Scroll Wheel"), action: #selector(toggleReverse), keyEquivalent: "")
         reverse.target = self
         reverse.state = settings.reverse ? .on : .off
         menu.addItem(reverse)
@@ -170,16 +171,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         // 授权引导入口（未授权时可见）
-        let permission = NSMenuItem(title: "辅助功能权限设置…", action: #selector(openAccessibilitySettings), keyEquivalent: "")
+        let permission = NSMenuItem(title: L("辅助功能权限设置…", "Accessibility Settings…"), action: #selector(openAccessibilitySettings), keyEquivalent: "")
         permission.target = self
         menu.addItem(permission)
 
-        let preferences = NSMenuItem(title: "偏好设置…", action: #selector(showPreferences), keyEquivalent: ",")
+        let preferences = NSMenuItem(title: L("偏好设置…", "Settings…"), action: #selector(showPreferences), keyEquivalent: ",")
         preferences.target = self
         menu.addItem(preferences)
 
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "退出 ScrollLab", action: #selector(quitApp), keyEquivalent: "q")
+        let quit = NSMenuItem(title: L("退出 ScrollLab", "Quit ScrollLab"), action: #selector(quitApp), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 
@@ -196,16 +197,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if items.indices.contains(0) {
             let active = tapController.isActive
             if !granted {
-                items[0].title = "⚠︎ 等待辅助功能授权"
+                items[0].title = L("⚠︎ 等待辅助功能授权", "⚠︎ Waiting for Accessibility Access")
                 items[0].state = .off
             } else if temporarilyPaused {
-                items[0].title = "已临时暂停"
+                items[0].title = L("已临时暂停", "Temporarily Paused")
                 items[0].state = .off
             } else if active {
-                items[0].title = "事件拦截运行中"
+                items[0].title = L("事件拦截运行中", "Event Interception Running")
                 items[0].state = .on
             } else {
-                items[0].title = settings.enabled ? "事件拦截未生效" : "已停用"
+                items[0].title = settings.enabled ? L("事件拦截未生效", "Event Interception Inactive") : L("已停用", "Disabled")
                 items[0].state = .off
             }
         }

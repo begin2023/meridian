@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import MeridianLocalization
 
 // 网络模块:主接口上下行速率 + 接口累计/会话累计 + 当前 IP 与归属地。
 final class NetModule: BaseModule {
@@ -31,7 +32,7 @@ final class NetModule: BaseModule {
     private var totalDownRow: LegendRowView?
 
     init() {
-        super.init(id: "net", displayName: "网络")
+        super.init(id: "net", displayName: L("网络", "Network"))
     }
 
     override func sample() {
@@ -46,7 +47,7 @@ final class NetModule: BaseModule {
             self.snapshot.interfaceTotalDownBytes = traffic.totalDownBytes
             self.snapshot.interfaceTotalUpBytes = traffic.totalUpBytes
             self.snapshot.ipAddress = primaryIP
-            self.currentInterfaceNames = primary ?? "无活动接口"
+            self.currentInterfaceNames = primary ?? ""
             if AppSettings.shared.networkGeoLookupEnabled, primaryIP != self.lastLookedUpIP {
                 self.lastLookedUpIP = primaryIP
                 GeoResolver.shared.lookupIfNeeded()
@@ -75,13 +76,13 @@ final class NetModule: BaseModule {
         upValueLabel?.stringValue = Format.decimalBytes(snapshot.upBytesPerSecond, perSecond: true)
         graphView?.values = downHistory
         graphView?.secondaryValues = upHistory
-        interfaceLabel?.stringValue = currentInterfaceNames.isEmpty ? "无活动接口" : currentInterfaceNames
+        interfaceLabel?.stringValue = currentInterfaceNames.isEmpty ? L("无活动接口", "No active interface") : currentInterfaceNames
 
         let lookupEnabled = AppSettings.shared.networkGeoLookupEnabled
         ipRow?.value = lookupEnabled
             ? (GeoResolver.shared.publicIP ?? (snapshot.ipAddress.isEmpty ? "—" : snapshot.ipAddress))
             : (snapshot.ipAddress.isEmpty ? "—" : snapshot.ipAddress)
-        geoRow?.value = lookupEnabled ? GeoResolver.shared.currentText : "未启用在线查询"
+        geoRow?.value = lookupEnabled ? GeoResolver.shared.currentText : L("未启用在线查询", "Online lookup off")
         totalUpRow?.value = Format.decimalBytes(Double(snapshot.interfaceTotalUpBytes))
         totalDownRow?.value = Format.decimalBytes(Double(snapshot.interfaceTotalDownBytes))
     }
@@ -132,7 +133,7 @@ final class NetModule: BaseModule {
         header.orientation = .horizontal
         header.alignment = .firstBaseline
         header.spacing = 8
-        let titleLabel = NSTextField(labelWithString: "网络")
+        let titleLabel = NSTextField(labelWithString: L("网络", "Network"))
         titleLabel.font = AppTheme.font(ofSize: 15, weight: .semibold)
         titleLabel.textColor = AppTheme.primaryText
         let interfaceLabel = NSTextField(labelWithString: "")
@@ -156,7 +157,7 @@ final class NetModule: BaseModule {
         let valuesRow = NSStackView(views: [])
         valuesRow.orientation = .horizontal
         valuesRow.spacing = 20
-        let downTitle = NSTextField(labelWithString: "↓ 下载")
+        let downTitle = NSTextField(labelWithString: L("↓ 下载", "↓ Download"))
         downTitle.font = AppTheme.font(ofSize: 11, weight: .medium)
         downTitle.textColor = NSColor(calibratedRed: 0.4, green: 0.85, blue: 0.55, alpha: 1)
         let downValue = NSTextField(labelWithString: "0B/s")
@@ -169,7 +170,7 @@ final class NetModule: BaseModule {
         downStack.spacing = 1
 
         let upColor = AppTheme.accent
-        let upTitle = NSTextField(labelWithString: "↑ 上传")
+        let upTitle = NSTextField(labelWithString: L("↑ 上传", "↑ Upload"))
         upTitle.font = AppTheme.font(ofSize: 11, weight: .medium)
         upTitle.textColor = upColor
         let upValue = NSTextField(labelWithString: "0B/s")
@@ -196,10 +197,10 @@ final class NetModule: BaseModule {
         legendStack.orientation = .vertical
         legendStack.spacing = 2
         legendStack.translatesAutoresizingMaskIntoConstraints = false
-        let ipRow = LegendRowView(name: "当前 IP", color: NSColor(calibratedWhite: 0.6, alpha: 1))
-        let geoRow = LegendRowView(name: "归属地", color: NSColor(calibratedWhite: 0.6, alpha: 1))
-        let totalUpRow = LegendRowView(name: "累计上传", color: upColor)
-        let totalDownRow = LegendRowView(name: "累计下载", color: NSColor(calibratedRed: 0.4, green: 0.85, blue: 0.55, alpha: 1))
+        let ipRow = LegendRowView(name: L("当前 IP", "Current IP"), color: NSColor(calibratedWhite: 0.6, alpha: 1))
+        let geoRow = LegendRowView(name: L("归属地", "Location"), color: NSColor(calibratedWhite: 0.6, alpha: 1))
+        let totalUpRow = LegendRowView(name: L("累计上传", "Total Upload"), color: upColor)
+        let totalDownRow = LegendRowView(name: L("累计下载", "Total Download"), color: NSColor(calibratedRed: 0.4, green: 0.85, blue: 0.55, alpha: 1))
         let legendRows = [ipRow, geoRow, totalUpRow, totalDownRow]
         for row in legendRows {
             legendStack.addArrangedSubview(row)
@@ -243,7 +244,7 @@ final class NetModule: BaseModule {
         result["interface"] = currentInterfaceNames
         result["geoLookupEnabled"] = AppSettings.shared.networkGeoLookupEnabled
         result["geoText"] = AppSettings.shared.networkGeoLookupEnabled
-            ? GeoResolver.shared.currentText : "未启用在线查询"
+            ? GeoResolver.shared.currentText : L("未启用在线查询", "Online lookup off")
         result["downHistory"] = downHistory
         result["upHistory"] = upHistory
         return result

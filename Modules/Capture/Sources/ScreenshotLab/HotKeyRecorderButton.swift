@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import MeridianLocalization
 
 /// A keycap-style button that records an arbitrary key combination.
 final class HotKeyRecorderButton: NSButton {
@@ -95,14 +96,14 @@ final class HotKeyRecorderButton: NSButton {
 
     private func beginRecording() {
         isRecording = true
-        title = "按下快捷键…"
+        title = L("按下快捷键…", "Press Shortcut…")
         window?.makeFirstResponder(self)
         updateAppearance()
     }
 
     private func cancelRecording() {
         isRecording = false
-        title = choice?.name ?? "未设置"
+        title = choice?.name ?? L("未设置", "Not Set")
         updateAppearance()
     }
 

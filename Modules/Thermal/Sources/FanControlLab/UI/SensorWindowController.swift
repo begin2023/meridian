@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 /// Read-only fan and temperature workspace.
 ///
@@ -12,8 +13,8 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
 
     private let rpmValue = NSTextField(labelWithString: "—")
     private let temperatureValue = NSTextField(labelWithString: "—")
-    private let syncLabel = NSTextField(labelWithString: "等待 SMC 采样…")
-    private let detailLabel = NSTextField(labelWithString: "系统自动控制")
+    private let syncLabel = NSTextField(labelWithString: L("等待 SMC 采样…", "Waiting for SMC sample…"))
+    private let detailLabel = NSTextField(labelWithString: L("系统自动控制", "System Auto"))
     private let fanTable = NSTableView()
     private let sensorTable = NSTableView()
 
@@ -28,8 +29,8 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
             backing: .buffered,
             defer: false
         )
-        window.title = "传感器详情"
-        window.subtitle = "风扇与温度 · 只读监控"
+        window.title = L("传感器详情", "Sensor Details")
+        window.subtitle = L("风扇与温度 · 只读监控", "Fans & Temperature · Read-Only")
         window.minSize = NSSize(width: 660, height: 620)
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
@@ -75,10 +76,10 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
         icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 30, weight: .medium)
         icon.translatesAutoresizingMaskIntoConstraints = false
 
-        let title = NSTextField(labelWithString: "传感器详情")
+        let title = NSTextField(labelWithString: L("传感器详情", "Sensor Details"))
         title.font = AppTheme.font(ofSize: 26, weight: .semibold)
         title.textColor = AppTheme.primaryText
-        let subtitle = NSTextField(labelWithString: "实际转速与温度候选 · 系统保持自动控制")
+        let subtitle = NSTextField(labelWithString: L("实际转速与温度候选 · 系统保持自动控制", "Actual fan speeds and temperature candidates · System stays in control"))
         subtitle.font = AppTheme.font(ofSize: 12)
         subtitle.textColor = AppTheme.secondaryText
         let titleStack = NSStackView(views: [title, subtitle])
@@ -86,7 +87,7 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
         titleStack.alignment = .leading
         titleStack.spacing = 2
 
-        let readOnly = NSTextField(labelWithString: "只读")
+        let readOnly = NSTextField(labelWithString: L("只读", "Read-Only"))
         readOnly.font = AppTheme.font(ofSize: 11, weight: .semibold)
         readOnly.textColor = AppTheme.accent
         readOnly.alignment = .center
@@ -95,7 +96,7 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
         readOnly.layer?.borderWidth = 1
         readOnly.layer?.cornerRadius = 10
         readOnly.translatesAutoresizingMaskIntoConstraints = false
-        readOnly.widthAnchor.constraint(equalToConstant: 56).isActive = true
+        readOnly.widthAnchor.constraint(equalToConstant: Localization.isChinese ? 56 : 76).isActive = true
         readOnly.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
         let header = NSStackView(views: [icon, titleStack, NSView(), readOnly])
@@ -106,14 +107,14 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
         icon.heightAnchor.constraint(equalToConstant: 36).isActive = true
 
         let rpmCard = makeMetricCard(
-            title: "当前转速",
+            title: L("当前转速", "Current Speed"),
             value: rpmValue,
-            footnote: "首个风扇 · 系统报告"
+            footnote: L("首个风扇 · 系统报告", "First fan · Reported by system")
         )
         let tempCard = makeMetricCard(
-            title: "CPU 温度",
+            title: L("CPU 温度", "CPU Temperature"),
             value: temperatureValue,
-            footnote: "候选传感器平均"
+            footnote: L("候选传感器平均", "Average of candidate sensors")
         )
         let metricRow = NSStackView(views: [rpmCard, tempCard])
         metricRow.orientation = .horizontal
@@ -123,13 +124,16 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
         configureFanTable()
         configureSensorTable()
 
-        let fanHeader = sectionHeader("风扇", trailing: detailLabel)
+        let fanHeader = sectionHeader(L("风扇", "Fans"), trailing: detailLabel)
         let fanScroll = tableScrollView(fanTable, minimumHeight: 112)
-        let sensorHeader = sectionHeader("温度传感器", trailing: syncLabel)
+        let sensorHeader = sectionHeader(L("温度传感器", "Temperature Sensors"), trailing: syncLabel)
         let sensorScroll = tableScrollView(sensorTable, minimumHeight: 142)
 
         let footer = NSTextField(
-            wrappingLabelWithString: "此窗口只读。风扇继续由系统自动控制；不包含写入、策略武装或特权助手安装入口。"
+            wrappingLabelWithString: L(
+                "此窗口只读。风扇继续由系统自动控制；不包含写入、策略武装或特权助手安装入口。",
+                "This window is read-only. Fans stay under system control; it offers no writes, policy arming or privileged helper installation."
+            )
         )
         footer.font = AppTheme.font(ofSize: 11)
         footer.textColor = AppTheme.secondaryText
@@ -223,17 +227,17 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
 
     private func configureFanTable() {
         fanTable.identifier = NSUserInterfaceItemIdentifier("fans")
-        addColumn("fanName", title: "风扇", width: 250, to: fanTable)
-        addColumn("fanRotation", title: "实际 / 目标", width: 190, to: fanTable)
-        addColumn("fanRange", title: "系统范围", width: 190, to: fanTable)
+        addColumn("fanName", title: L("风扇", "Fan"), width: 250, to: fanTable)
+        addColumn("fanRotation", title: L("实际 / 目标", "Actual / Target"), width: 190, to: fanTable)
+        addColumn("fanRange", title: L("系统范围", "System Range"), width: 190, to: fanTable)
         configureBase(fanTable)
     }
 
     private func configureSensorTable() {
         sensorTable.identifier = NSUserInterfaceItemIdentifier("sensors")
-        addColumn("sensorName", title: "传感器", width: 350, to: sensorTable)
-        addColumn("sensorKind", title: "类型", width: 120, to: sensorTable)
-        addColumn("sensorTemperature", title: "温度", width: 120, to: sensorTable)
+        addColumn("sensorName", title: L("传感器", "Sensor"), width: 350, to: sensorTable)
+        addColumn("sensorKind", title: L("类型", "Type"), width: 120, to: sensorTable)
+        addColumn("sensorTemperature", title: L("温度", "Temperature"), width: 120, to: sensorTable)
         configureBase(sensorTable)
     }
 
@@ -280,17 +284,17 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
         rpmValue.stringValue = fans.first.map { String(format: "%.0f RPM", $0.currentRPM) } ?? "—"
         temperatureValue.stringValue = cpu.map(settings.formattedTemperature) ?? "—"
         detailLabel.stringValue = fans.isEmpty
-            ? "未检测到风扇"
-            : "\(fans.count) 个风扇 · 系统自动控制"
+            ? L("未检测到风扇", "No fans detected")
+            : L("\(fans.count) 个风扇 · 系统自动控制", "\(fans.count) \(fans.count == 1 ? "fan" : "fans") · System Auto")
 
         if let startupError {
-            syncLabel.stringValue = "SMC 不可用"
+            syncLabel.stringValue = L("SMC 不可用", "SMC unavailable")
             syncLabel.toolTip = startupError
         } else if latestUpdate == nil {
-            syncLabel.stringValue = "等待首次采样…"
+            syncLabel.stringValue = L("等待首次采样…", "Waiting for first sample…")
             syncLabel.toolTip = nil
         } else {
-            syncLabel.stringValue = "只读 · \(sensors.count) 个温度点"
+            syncLabel.stringValue = L("只读 · \(sensors.count) 个温度点", "Read-only · \(sensors.count) \(sensors.count == 1 ? "sensor" : "sensors")")
             syncLabel.toolTip = nil
         }
 
@@ -326,7 +330,7 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
             let fan = fans[row]
             switch tableColumn.identifier.rawValue {
             case "fanName":
-                return cell(fan.name, secondary: "风扇 \(fan.index + 1)")
+                return cell(fan.name, secondary: L("风扇 \(fan.index + 1)", "Fan \(fan.index + 1)"))
             case "fanRotation":
                 return cell(
                     String(format: "%.0f RPM / %.0f", fan.currentRPM, fan.targetRPM),
@@ -361,7 +365,7 @@ final class SensorWindowController: NSWindowController, NSTableViewDataSource, N
         switch kind {
         case .cpu: return "CPU"
         case .gpu: return "GPU"
-        case .other: return "其他"
+        case .other: return L("其他", "Other")
         }
     }
 

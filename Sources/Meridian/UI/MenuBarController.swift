@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import FanControlLabKit
+import MeridianLocalization
 import MonitoringLabKit
 import SwiftUI
 
@@ -119,26 +120,26 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             menu.addItem(item)
         }
         if prefs.isEnabled(.capture) {
-            add("截图", "viewfinder", .capture) { [weak self] in self?.coordinator.capture.capture() }
-            add("截图识字", "text.viewfinder", .ocr) { [weak self] in self?.coordinator.capture.captureOCR() }
-            add("截图并贴图", "pin", .pin) { [weak self] in self?.coordinator.capture.capturePin() }
-            add(coordinator.capture.gifRecording ? "停止 GIF 录制" : "录制 GIF", "record.circle", .gif) { [weak self] in
+            add(L("截图", "Capture Area"), "viewfinder", .capture) { [weak self] in self?.coordinator.capture.capture() }
+            add(L("截图识字", "Capture Text"), "text.viewfinder", .ocr) { [weak self] in self?.coordinator.capture.captureOCR() }
+            add(L("截图并贴图", "Capture & Pin"), "pin", .pin) { [weak self] in self?.coordinator.capture.capturePin() }
+            add(coordinator.capture.gifRecording ? L("停止 GIF 录制", "Stop GIF Recording") : L("录制 GIF", "Record GIF"), "record.circle", .gif) { [weak self] in
                 self?.coordinator.capture.toggleGIF()
             }
-            add("截图历史", "clock.arrow.circlepath") { [weak self] in self?.coordinator.capture.showHistory() }
+            add(L("截图历史", "Screenshot History"), "clock.arrow.circlepath") { [weak self] in self?.coordinator.capture.showHistory() }
             menu.addItem(.separator())
         }
         if prefs.isEnabled(.pointer) {
-            add(coordinator.pointer.paused ? "恢复滚动增强" : "暂停滚动增强", "computermouse", .toggleScroll) { [weak self] in
+            add(coordinator.pointer.paused ? L("恢复滚动增强", "Resume Scroll Enhancement") : L("暂停滚动增强", "Pause Scroll Enhancement"), "computermouse", .toggleScroll) { [weak self] in
                 self?.coordinator.pointer.togglePause()
             }
             menu.addItem(.separator())
         }
-        add("打开 Meridian", "macwindow") { [weak self] in self?.coordinator.openMain(.overview) }
-        add("设置…", "gearshape") { [weak self] in self?.coordinator.openMain(.overview) }
+        add(L("打开 Meridian", "Open Meridian"), "macwindow") { [weak self] in self?.coordinator.openMain(.overview) }
+        add(L("设置…", "Settings…"), "gearshape") { [weak self] in self?.coordinator.openMain(.overview) }
         if includeQuit {
             menu.addItem(.separator())
-            add("退出 Meridian", "power") { NSApp.terminate(nil) }
+            add(L("退出 Meridian", "Quit Meridian"), "power") { NSApp.terminate(nil) }
         }
         mainItem.menu = menu
         mainItem.button?.performClick(nil)
@@ -211,22 +212,22 @@ enum WidgetRenderer {
         case .cpu:
             return .twoLine(top: "CPU", bottom: Format.percent(s.cpuPercent), width: 30)
         case .memory:
-            return .twoLine(top: "内存", bottom: Format.percent(s.memoryFraction * 100), width: 30)
+            return .twoLine(top: L("内存", "MEM"), bottom: Format.percent(s.memoryFraction * 100), width: 30)
         case .network:
             return .stacked(lines: ["↑ " + Format.compactRate(s.netUpPerSecond) + "/s",
                                    "↓ " + Format.compactRate(s.netDownPerSecond) + "/s"], width: 54)
         case .disk:
             let root = s.volumes.first { $0.mountPath == "/" } ?? s.volumes.first
             let used = root.map { Format.percent($0.usedFraction * 100) } ?? "--"
-            return .twoLine(top: "磁盘", bottom: used, width: 30)
+            return .twoLine(top: L("磁盘", "DISK"), bottom: used, width: 30)
         case .gpu:
             return .twoLine(top: "GPU", bottom: s.gpu.available ? Format.percent(s.gpu.utilization) : "--", width: 30)
         case .temperature:
             let value = reading?.cpuAverage.map { "\(Int($0.rounded()))°" } ?? "--"
-            return .twoLine(top: "温度", bottom: value, width: 30)
+            return .twoLine(top: L("温度", "TEMP"), bottom: value, width: 30)
         case .fan:
             let rpm = reading?.fans.first.map { "\(Int($0.currentRPM.rounded()))" } ?? "--"
-            return .twoLine(top: "风扇", bottom: rpm, width: 34)
+            return .twoLine(top: L("风扇", "FAN"), bottom: rpm, width: 34)
         }
     }
 

@@ -1,12 +1,35 @@
 import AppKit
 import DisplayCore
 import PrivilegedSupport
+import MeridianLocalization
 
 /// Authenticated local requests; no privileged writes into a user's home.
 final class OverrideService {
     enum OverrideError: LocalizedError {
         case helperRejected(String)
-        var errorDescription: String? { if case .helperRejected(let message) = self { return message }; return nil }
+        var errorDescription: String? {
+            if case .helperRejected(let message) = self { return Self.localized(message) }
+            return nil
+        }
+
+        /// The root helper can't see the app's language setting and always
+        /// replies in Chinese; map its fixed replies here.
+        private static func localized(_ message: String) -> String {
+            guard !Localization.isChinese else { return message }
+            let known: [String: String] = [
+                "非法的显示器标识。": "Invalid display identifier.",
+                "缺少 scale-resolutions 数据。": "Missing scale-resolutions data.",
+                "scale-resolutions 数据非法。": "Invalid scale-resolutions data.",
+                "显示器参数非法。": "Invalid display parameters.",
+                "本来就没有覆盖。": "No override was installed.",
+                "覆盖目录不是普通目录，已取消。": "The override location isn't a regular directory; cancelled.",
+                "已移除。": "Removed.",
+                "未知命令。": "Unknown command.",
+            ]
+            if let english = known[message] { return english }
+            if message.hasPrefix("已写入 ") { return "Wrote " + message.dropFirst(4) }
+            return message
+        }
     }
     static let daemonLabel = "app.meridian.display.helper"
     static let installedHelperPath = "/Library/PrivilegedHelperTools/app.meridian.display.helper"
@@ -48,8 +71,8 @@ final class OverrideService {
         )
         _ = try await send(command)
         let tiers = OverrideSupport.hiDPILadder(nativeWidth: nativeWidth, nativeHeight: nativeHeight)
-            .map { "\($0.width)×\($0.height)" }.joined(separator: "、")
-        return "已为 \(display.name) 写入 HiDPI 档位：\(tiers)。重新插拔显示线或注销重登后生效。"
+            .map { "\($0.width)×\($0.height)" }.joined(separator: L("、", ", "))
+        return L("已为 \(display.name) 写入 HiDPI 档位：\(tiers)。重新插拔显示线或注销重登后生效。", "Wrote HiDPI tiers for \(display.name): \(tiers). Reconnect the display cable or log out and back in to apply.")
     }
 
     func removeOverride(for display: DisplayInfo) async throws -> String {
@@ -63,6 +86,6 @@ final class OverrideService {
             targetDefaultPPMM: nil
         )
         _ = try await send(command)
-        return "已移除 \(display.name) 的 HiDPI 覆盖。重新插拔显示线或注销重登后恢复。"
+        return L("已移除 \(display.name) 的 HiDPI 覆盖。重新插拔显示线或注销重登后恢复。", "Removed the HiDPI override for \(display.name). Reconnect the display cable or log out and back in to revert.")
     }
 }

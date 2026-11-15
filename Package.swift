@@ -13,6 +13,7 @@ let package = Package(
         .package(path: "Modules/Monitoring"),
         .package(path: "Modules/Display"),
         .package(path: "Modules/Thermal"),
+        .package(path: "Modules/Localization"),
     ],
     targets: [
         .executableTarget(
@@ -23,6 +24,7 @@ let package = Package(
                 .product(name: "MonitoringLabKit", package: "Monitoring"),
                 .product(name: "DisplayLabKit", package: "Display"),
                 .product(name: "FanControlLabKit", package: "Thermal"),
+                .product(name: "MeridianLocalization", package: "Localization"),
             ],
             path: "Sources/Meridian",
             linkerSettings: [

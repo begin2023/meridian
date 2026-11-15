@@ -1,5 +1,6 @@
 import AppKit
 import ImageIO
+import MeridianLocalization
 import UniformTypeIdentifiers
 
 enum ImageOutputError: LocalizedError {
@@ -9,9 +10,9 @@ enum ImageOutputError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .encodeFailed:
-            return "无法编码图片。"
+            return L("无法编码图片。", "Couldn’t encode the image.")
         case .unsupportedFormat(let format):
-            return "当前 macOS ImageIO 不支持写入 \(format) 格式。"
+            return L("当前 macOS ImageIO 不支持写入 \(format) 格式。", "This version of macOS ImageIO can’t write \(format) images.")
         }
     }
 }

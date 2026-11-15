@@ -1,5 +1,6 @@
 import AppKit
 import ImageIO
+import MeridianLocalization
 
 final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate {
     var onEdit: ((CGImage) -> Void)?
@@ -12,26 +13,31 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
 
     private let tableView = NSTableView()
     private let previewImageView = NSImageView()
-    private let previewPlaceholder = NSTextField(labelWithString: "选择一张截图进行预览")
+    private let previewPlaceholder = NSTextField(labelWithString: L("选择一张截图进行预览", "Select a screenshot to preview"))
     private let metadataLabel = NSTextField(labelWithString: "")
-    private let headingLabel = NSTextField(labelWithString: "截图历史")
+    private let headingLabel = NSTextField(labelWithString: L("截图历史", "Screenshot History"))
     private let countLabel = NSTextField(labelWithString: "")
-    private let emptyLabel = NSTextField(labelWithString: "暂无截图")
+    private let emptyLabel = NSTextField(labelWithString: L("暂无截图", "No Screenshots"))
     private let startPicker = NSDatePicker()
     private let endPicker = NSDatePicker()
-    private let clearFilterButton = NSButton(title: "显示全部", target: nil, action: nil)
+    private let clearFilterButton = NSButton(title: L("显示全部", "Show All"), target: nil, action: nil)
     private let limitField = NSTextField()
     private let limitStepper = NSStepper()
-    private let editButton = NSButton(title: "编辑", target: nil, action: nil)
-    private let copyButton = NSButton(title: "复制图片", target: nil, action: nil)
-    private let finderButton = NSButton(title: "在 Finder 中显示", target: nil, action: nil)
-    private let deleteButton = NSButton(title: "删除", target: nil, action: nil)
+    private let editButton = NSButton(title: L("编辑", "Edit"), target: nil, action: nil)
+    private let copyButton = NSButton(title: L("复制图片", "Copy Image"), target: nil, action: nil)
+    private let finderButton = NSButton(title: L("在 Finder 中显示", "Show in Finder"), target: nil, action: nil)
+    private let deleteButton = NSButton(title: L("删除", "Delete"), target: nil, action: nil)
     private let previewSpinner = NSProgressIndicator()
     private let thumbnailCache = NSCache<NSString, NSImage>()
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "yyyy年M月d日 HH:mm:ss"
+        if Localization.isChinese {
+            formatter.locale = Locale(identifier: "zh_CN")
+            formatter.dateFormat = "yyyy年M月d日 HH:mm:ss"
+        } else {
+            formatter.locale = Locale(identifier: "en_US")
+            formatter.setLocalizedDateFormatFromTemplate("yMMMdHHmmss")
+        }
         return formatter
     }()
     private let byteFormatter: ByteCountFormatter = {
@@ -53,7 +59,7 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
             backing: .buffered,
             defer: false
         )
-        window.title = "截图历史"
+        window.title = L("截图历史", "Screenshot History")
         window.minSize = NSSize(width: 820, height: 520)
         window.isReleasedWhenClosed = false
         window.center()
@@ -121,12 +127,12 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         titleRow.alignment = .centerY
         titleRow.spacing = 12
 
-        let timeLabel = NSTextField(labelWithString: "时间")
+        let timeLabel = NSTextField(labelWithString: L("时间", "Date"))
         timeLabel.font = AppTheme.font(ofSize: 11, weight: .medium)
         timeLabel.textColor = .secondaryLabelColor
         configureDatePicker(startPicker, identifier: "HistoryStartDate")
         configureDatePicker(endPicker, identifier: "HistoryEndDate")
-        let rangeSeparator = NSTextField(labelWithString: "至")
+        let rangeSeparator = NSTextField(labelWithString: L("至", "to"))
         rangeSeparator.font = AppTheme.font(ofSize: 11, weight: .regular)
         rangeSeparator.textColor = .secondaryLabelColor
 
@@ -136,11 +142,11 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         clearFilterButton.controlSize = .small
         clearFilterButton.identifier = NSUserInterfaceItemIdentifier("HistoryClearDate")
 
-        let retentionLabel = NSTextField(labelWithString: "保留最近")
+        let retentionLabel = NSTextField(labelWithString: L("保留最近", "Keep last"))
         retentionLabel.font = AppTheme.font(ofSize: 11, weight: .medium)
         retentionLabel.textColor = .secondaryLabelColor
         configureLimitControls()
-        let retentionSuffix = NSTextField(labelWithString: "张")
+        let retentionSuffix = NSTextField(labelWithString: L("张", "screenshots"))
         retentionSuffix.font = AppTheme.font(ofSize: 11, weight: .regular)
         retentionSuffix.textColor = .secondaryLabelColor
 
@@ -238,7 +244,7 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         actions.spacing = 7
 
         let memoryNote = NSTextField(
-            wrappingLabelWithString: "历史存于本地磁盘；缩略图和当前预览会增加少量内存占用。"
+            wrappingLabelWithString: L("历史存于本地磁盘；缩略图和当前预览会增加少量内存占用。", "History is stored on the local disk; thumbnails and the current preview use a little memory.")
         )
         memoryNote.font = AppTheme.font(ofSize: 11, weight: .regular)
         memoryNote.textColor = .tertiaryLabelColor
@@ -375,7 +381,7 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         } else {
             tableView.deselectAll(nil)
         }
-        countLabel.stringValue = "\(displayedEntries.count) 张"
+        countLabel.stringValue = L("\(displayedEntries.count) 张", displayedEntries.count == 1 ? "1 screenshot" : "\(displayedEntries.count) screenshots")
         emptyLabel.isHidden = !displayedEntries.isEmpty
         updateSelection()
     }
@@ -403,15 +409,15 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
         if let entry {
             previewPlaceholder.isHidden = true
             previewSpinner.startAnimation(nil)
-            metadataLabel.stringValue = "\(dateFormatter.string(from: entry.createdAt))  ·  \(entry.byteCount > 0 ? byteFormatter.string(fromByteCount: entry.byteCount) : "正在读取")"
+            metadataLabel.stringValue = "\(dateFormatter.string(from: entry.createdAt))  ·  \(entry.byteCount > 0 ? byteFormatter.string(fromByteCount: entry.byteCount) : L("正在读取", "Loading"))"
             loadPreview(for: entry, generation: previewGeneration)
         } else {
             previewSpinner.stopAnimation(nil)
             previewImageView.image = nil
             previewPlaceholder.isHidden = false
             metadataLabel.stringValue = filterActive && displayedEntries.isEmpty
-                ? "当前日期范围没有截图"
-                : "尚未选择截图"
+                ? L("当前日期范围没有截图", "No screenshots in this date range")
+                : L("尚未选择截图", "No screenshot selected")
         }
     }
 
@@ -447,7 +453,7 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
                 self.previewSpinner.stopAnimation(nil)
                 self.previewImageView.image = nsImage
                 self.previewPlaceholder.isHidden = nsImage != nil
-                self.previewPlaceholder.stringValue = nsImage == nil ? "无法读取预览" : ""
+                self.previewPlaceholder.stringValue = nsImage == nil ? L("无法读取预览", "Couldn’t load preview") : ""
             }
         }
     }
@@ -548,10 +554,10 @@ final class ScreenshotHistoryWindowController: NSWindowController, NSTableViewDa
     @objc private func deleteSelected() {
         guard let entry = selectedEntry, let window else { return }
         let alert = NSAlert()
-        alert.messageText = "删除这张历史截图？"
-        alert.informativeText = "只会删除 ScreenshotLab 的历史副本，不会影响你另外保存的文件。"
-        alert.addButton(withTitle: "删除")
-        alert.addButton(withTitle: "取消")
+        alert.messageText = L("删除这张历史截图？", "Delete This Screenshot from History?")
+        alert.informativeText = L("只会删除 ScreenshotLab 的历史副本，不会影响你另外保存的文件。", "Only the history copy is deleted. Files you saved elsewhere aren’t affected.")
+        alert.addButton(withTitle: L("删除", "Delete"))
+        alert.addButton(withTitle: L("取消", "Cancel"))
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertFirstButtonReturn else { return }
             self?.store.delete(id: entry.id)

@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 final class AnnotationToolButton: HoverButton {
     override var wantsUpdateLayer: Bool { false }
@@ -8,9 +9,11 @@ final class AnnotationToolButton: HoverButton {
     var iconFrame: CGRect { CGRect(x: (bounds.width - 20) / 2, y: 23, width: 20, height: 20) }
     var labelFrame: CGRect { CGRect(x: 0, y: 4, width: bounds.width, height: 16) }
 
-    // Intrinsic (not equality-constrained) so the window can shrink below the
-    // full top-row width; the placement logic then moves actions down.
-    override var intrinsicContentSize: NSSize { NSSize(width: 44, height: 48) }
+    // At least 44pt, wider when a label (e.g. English) needs the room.
+    override var intrinsicContentSize: NSSize {
+        let label = (title as NSString).size(withAttributes: [.font: AppTheme.font(ofSize: 11, weight: .medium)])
+        return NSSize(width: max(44, ceil(label.width) + 10), height: 48)
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         // NSButton's imageAbove layout depends on each image's intrinsic size
@@ -41,8 +44,7 @@ final class AnnotationActionButton: HoverButton {
     override var isFlipped: Bool { false }
     override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
 
-    // icon 14 + gap 6 + text + symmetric 10pt padding; intrinsic (not pinned)
-    // so a narrow window can compress the row and move actions to row two.
+    // icon 14 + gap 6 + text + symmetric 10pt padding.
     override var intrinsicContentSize: NSSize {
         let textSize = (title as NSString).size(withAttributes: [
             .font: AppTheme.font(ofSize: 13, weight: .medium),
@@ -99,29 +101,30 @@ final class EditorToolbarView: FrostedBarView {
     private let redoButton = HoverButton()
     private let deleteButton = HoverButton()
     private let colorWell = NSColorWell()
-    private let colorLabel = NSTextField(labelWithString: "颜色")
+    private let colorLabel = NSTextField(labelWithString: L("颜色", "Color"))
     private let widthTrack = SizeTrackControl(values: [1, 2, 4, 8, 12, 20, 32], selected: 2)
     private let fontSizeTrack = SizeTrackControl(values: [18, 26, 36, 48, 64], selected: 1)
-    private let styleLabel = NSTextField(labelWithString: "线宽")
+    private let styleLabel = NSTextField(labelWithString: L("线宽", "Width"))
     private let brushSizeTrack = SizeTrackControl(values: [12, 24, 40, 64, 96, 128], selected: 2, appearance: .mosaic)
     private let blockGrid = MosaicBlockGridView()
     private let arrowPresets = ArrowPresetControl()
     private let blurChips = PresetChipControl(
-        titles: ["弱", "中", "强"],
-        tooltips: ["轻度模糊，仍能看出轮廓", "标准模糊强度", "强力模糊，完全看不清内容"],
+        titles: [L("弱", "Low"), L("中", "Medium"), L("强", "High")],
+        tooltips: [
+            L("轻度模糊，仍能看出轮廓", "Light blur; outlines stay visible"),
+            L("标准模糊强度", "Standard blur strength"),
+            L("强力模糊，完全看不清内容", "Strong blur; content is fully obscured"),
+        ],
         selected: 1,
-        accessibilityLabel: "模糊强度"
+        accessibilityLabel: L("模糊强度", "Blur strength")
     )
     private static let blurRadii: [CGFloat] = [8, 18, 36]
-    private let detailLabel = NSTextField(labelWithString: "像素块")
+    private let detailLabel = NSTextField(labelWithString: L("像素块", "Block Size"))
 
     private let topRow = NSStackView()
     private let optionsRow = NSStackView()
     private let options = NSStackView(views: [])
     private let actions = NSStackView()
-    /// The output actions always share the top row, pinned to the trailing
-    /// edge as an overlay so they never fight the tools for width.
-    private var actionsTopPlacement: NSLayoutConstraint!
     /// Owned height; switches between the full two-row bar and the compact
     /// single-row bar via a single constant. The options row keeps a fixed
     /// slot below the tools row (hidden when collapsed).
@@ -178,7 +181,7 @@ final class EditorToolbarView: FrostedBarView {
         fontSizeTrack.isHidden = !isText
         brushSizeTrack.isHidden = !isMosaic
         detailLabel.isHidden = !isMosaic
-        detailLabel.stringValue = "像素块"
+        detailLabel.stringValue = L("像素块", "Block Size")
         blockGrid.isHidden = !isMosaic
         arrowPresets.isHidden = !isArrow
         blurChips.isHidden = !isBlur
@@ -230,30 +233,29 @@ final class EditorToolbarView: FrostedBarView {
 
         topRow.addArrangedSubview(spacer())
         topRow.addArrangedSubview(separator())
-        configureIcon(undoButton, symbol: "arrow.uturn.backward", label: "撤销 (⌘Z)", action: #selector(undoClicked))
-        configureIcon(redoButton, symbol: "arrow.uturn.forward", label: "重做 (⇧⌘Z)", action: #selector(redoClicked))
-        configureIcon(deleteButton, symbol: "trash", label: "删除选中标注 (Delete)", action: #selector(deleteClicked))
+        configureIcon(undoButton, symbol: "arrow.uturn.backward", label: L("撤销 (⌘Z)", "Undo (⌘Z)"), action: #selector(undoClicked))
+        configureIcon(redoButton, symbol: "arrow.uturn.forward", label: L("重做 (⇧⌘Z)", "Redo (⇧⌘Z)"), action: #selector(redoClicked))
+        configureIcon(deleteButton, symbol: "trash", label: L("删除选中标注 (Delete)", "Delete selected annotation (Delete)"), action: #selector(deleteClicked))
         topRow.addArrangedSubview(undoButton)
         topRow.addArrangedSubview(redoButton)
         topRow.addArrangedSubview(deleteButton)
+        topRow.setCustomSpacing(10, after: deleteButton)
 
-        // Output actions overlay the right edge instead of living inside a
-        // stack: pinning them to the trailing edge creates no minimum-width
-        // pressure, so the window can always shrink. Their vertical position
-        // switches between the top row and the options row (see
-        // updateActionsPlacement).
+        // Output actions are real members of the top row, after the edit
+        // controls. (They used to overlay the row's trailing edge, which hid
+        // undo/redo and let the separator peek out beside the save button.)
+        // The editor window's minimum width follows the row's fitting width.
         actions.orientation = .horizontal
         actions.alignment = .centerY
         actions.spacing = 6
-        actions.detachesHiddenViews = true
-        actions.translatesAutoresizingMaskIntoConstraints = false
-        actionsTopPlacement = actions.centerYAnchor.constraint(equalTo: topRow.centerYAnchor)
+        actions.setHuggingPriority(.required, for: .horizontal)
+        actions.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         colorWell.color = .systemRed
         colorWell.target = self
         colorWell.action = #selector(colorChanged)
-        colorWell.toolTip = "标注颜色"
-        colorWell.setAccessibilityLabel("标注颜色")
+        colorWell.toolTip = L("标注颜色", "Annotation color")
+        colorWell.setAccessibilityLabel(L("标注颜色", "Annotation color"))
         colorWell.translatesAutoresizingMaskIntoConstraints = false
         colorWell.widthAnchor.constraint(equalToConstant: 36).isActive = true
         colorWell.heightAnchor.constraint(equalToConstant: 24).isActive = true
@@ -264,9 +266,9 @@ final class EditorToolbarView: FrostedBarView {
         styleLabel.font = AppTheme.font(ofSize: 12)
         styleLabel.textColor = AppTheme.secondaryText
         for (track, title, action) in [
-            (widthTrack, "标注线宽", #selector(widthChanged)),
-            (fontSizeTrack, "文字字号", #selector(fontSizeChanged)),
-            (brushSizeTrack, "马赛克笔刷直径", #selector(brushSizeChanged)),
+            (widthTrack, L("标注线宽", "Line width"), #selector(widthChanged)),
+            (fontSizeTrack, L("文字字号", "Font size"), #selector(fontSizeChanged)),
+            (brushSizeTrack, L("马赛克笔刷直径", "Pixelate brush diameter"), #selector(brushSizeChanged)),
         ] {
             track.target = self
             track.action = action
@@ -307,12 +309,13 @@ final class EditorToolbarView: FrostedBarView {
         optionsRow.addArrangedSubview(spacer())
         addSubview(optionsRow)
 
-        addAction(title: "钉图", symbol: "pin", action: .pin, tooltip: "将截图钉在屏幕上")
-        addAction(title: "提取文字", symbol: "text.viewfinder", action: .ocr, tooltip: "使用 OCR 提取文字")
-        addAction(title: "保存图片", symbol: "square.and.arrow.down", action: .save, tooltip: "保存图片 (⌘S)")
-        addAction(title: "复制图片", symbol: "doc.on.doc", action: .copy, tooltip: "复制图片 (⌘C)", primary: true)
-        // Above the rows so the overlay never hides behind option views.
-        addSubview(actions, positioned: .above, relativeTo: nil)
+        addAction(title: L("钉图", "Pin"), symbol: "pin", action: .pin, tooltip: L("将截图钉在屏幕上", "Pin the screenshot to the screen"))
+        addAction(title: L("提取文字", "Extract Text"), symbol: "text.viewfinder", action: .ocr, tooltip: L("使用 OCR 提取文字", "Extract text with OCR"))
+        addAction(title: L("保存图片", "Save…"), symbol: "square.and.arrow.down", action: .save, tooltip: L("保存图片 (⌘S)", "Save image (⌘S)"))
+        addAction(title: L("复制图片", "Copy"), symbol: "doc.on.doc", action: .copy, tooltip: L("复制图片 (⌘C)", "Copy image (⌘C)"), primary: true)
+        actions.setCustomSpacing(10, after: actions.arrangedSubviews[1])
+        topRow.addArrangedSubview(separator())
+        topRow.addArrangedSubview(actions)
 
         optionsTopConstraint = optionsRow.topAnchor.constraint(equalTo: topRow.bottomAnchor, constant: 8)
         optionsHeightConstraint = optionsRow.heightAnchor.constraint(equalToConstant: 56)
@@ -325,12 +328,10 @@ final class EditorToolbarView: FrostedBarView {
             topRow.heightAnchor.constraint(equalToConstant: 48),
             optionsRow.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
             optionsRow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            actions.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
             optionsTopConstraint,
             optionsHeightConstraint,
             barHeightConstraint,
         ])
-        actionsTopPlacement.isActive = true
 
         setTool(.select)
         setHistory(canUndo: false, canRedo: false, hasSelection: false, hasAnnotations: false)
@@ -350,17 +351,17 @@ final class EditorToolbarView: FrostedBarView {
     private func updateStyleLabel() {
         switch activeTool {
         case .text:
-            styleLabel.stringValue = "字号 · \(Int(fontSizeTrack.selectedValue))"
+            styleLabel.stringValue = L("字号 · \(Int(fontSizeTrack.selectedValue))", "Size · \(Int(fontSizeTrack.selectedValue))")
         case .mosaic:
-            styleLabel.stringValue = "笔刷 · \(Int(brushSizeTrack.selectedValue))"
+            styleLabel.stringValue = L("笔刷 · \(Int(brushSizeTrack.selectedValue))", "Brush · \(Int(brushSizeTrack.selectedValue))")
         case .blur:
-            styleLabel.stringValue = "强度"
+            styleLabel.stringValue = L("强度", "Strength")
         case .arrow:
-            styleLabel.stringValue = "箭头"
+            styleLabel.stringValue = L("箭头", "Arrow")
         case .select, .crop:
             styleLabel.stringValue = ""
         default:
-            styleLabel.stringValue = "粗细 · \(Int(widthTrack.selectedValue))"
+            styleLabel.stringValue = L("粗细 · \(Int(widthTrack.selectedValue))", "Width · \(Int(widthTrack.selectedValue))")
         }
     }
 

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import MeridianLocalization
 import ScreenshotLabKit
 
 /// 截图与识字：编辑器、贴图、OCR、GIF 和历史都来自截图模块，本类只做状态与设置的桥接。
@@ -102,7 +103,7 @@ final class CaptureModel: ObservableObject {
     func update(_ changes: [String: Any]) {
         let result = module.updateSettings(changes)
         if result["ok"] as? Bool != true {
-            lastError = result["message"] as? String ?? result["error"] as? String ?? "设置未保存"
+            lastError = result["message"] as? String ?? result["error"] as? String ?? L("设置未保存", "Settings weren't saved")
         } else {
             lastError = nil
         }
@@ -114,7 +115,7 @@ final class CaptureModel: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.prompt = "选择"
+        panel.prompt = L("选择", "Choose")
         panel.directoryURL = URL(fileURLWithPath: quickSaveDirectory)
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }

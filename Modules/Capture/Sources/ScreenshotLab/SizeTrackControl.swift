@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 /// The only thumb is the current brush preview; its size follows the drag.
 final class SizeTrackControl: NSControl {
@@ -37,7 +38,7 @@ final class SizeTrackControl: NSControl {
         super.init(frame: .zero)
         setAccessibilityRole(.slider)
         setAccessibilityValue(NSNumber(value: Double(selectedValue)))
-        toolTip = "左右拖动连续调整大小，圆形预览随当前尺寸变化；也可用方向键调整"
+        toolTip = L("左右拖动连续调整大小，圆形预览随当前尺寸变化；也可用方向键调整", "Drag left or right to adjust the size; the circle previews the current size. Arrow keys also work.")
         translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             widthAnchor.constraint(equalToConstant: 100),

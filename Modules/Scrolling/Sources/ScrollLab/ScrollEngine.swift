@@ -193,15 +193,19 @@ enum ScrollEngine {
     static func resolvePlan(for exception: AppException?) -> Plan {
         let settings = AppSettings.shared
         var plan = Plan()
-        if let exception, !exception.inherit {
-            plan.reverseVertical = exception.reverse && exception.reverseVertical
-            plan.reverseHorizontal = exception.reverse && exception.reverseHorizontal
-            plan.smooth = exception.smooth
-            plan.smoothVertical = exception.smooth && exception.smoothVertical
-            plan.smoothHorizontal = exception.smooth && exception.smoothHorizontal
-            plan.step = exception.step
-            plan.speed = exception.speed
-            plan.duration = exception.duration
+        if let exception {
+            // 反向与平滑各自解析，单独开启的项不看全局开关。
+            let reverse = exception.reverseMode.resolve(global: settings.reverse)
+            let smooth = exception.smoothMode.resolve(global: settings.smooth)
+            let custom = !exception.inherit
+            plan.reverseVertical = reverse && (custom ? exception.reverseVertical : settings.reverseVertical)
+            plan.reverseHorizontal = reverse && (custom ? exception.reverseHorizontal : settings.reverseHorizontal)
+            plan.smooth = smooth
+            plan.smoothVertical = smooth && (custom ? exception.smoothVertical : settings.smoothVertical)
+            plan.smoothHorizontal = smooth && (custom ? exception.smoothHorizontal : settings.smoothHorizontal)
+            plan.step = custom ? exception.step : settings.step
+            plan.speed = custom ? exception.speed : settings.speed
+            plan.duration = custom ? exception.duration : settings.duration
             return plan
         }
         plan.reverseVertical = settings.reverse && settings.reverseVertical

@@ -1,5 +1,6 @@
 import AppKit
 import ServiceManagement
+import MeridianLocalization
 
 enum WidgetStyle: Int {
     case text = 0
@@ -8,9 +9,9 @@ enum WidgetStyle: Int {
 
     var title: String {
         switch self {
-        case .text: return "文本"
-        case .bar: return "条形"
-        case .graph: return "图表"
+        case .text: return L("文本", "Text")
+        case .bar: return L("条形", "Bar")
+        case .graph: return L("图表", "Graph")
         }
     }
 

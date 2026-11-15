@@ -1,12 +1,13 @@
 import AppKit
+import MeridianLocalization
 
 final class GIFRecordingHUDController: NSWindowController {
     var onStop: (() -> Void)?
     var onCancel: (() -> Void)?
 
     private let timeLabel = NSTextField(labelWithString: "00:00")
-    private let titleLabel = NSTextField(labelWithString: "GIF 录制")
-    private let frameLabel = NSTextField(labelWithString: "0 帧")
+    private let titleLabel = NSTextField(labelWithString: L("GIF 录制", "GIF Recording"))
+    private let frameLabel = NSTextField(labelWithString: L("0 帧", "0 frames"))
     private let stopButton = HoverButton()
     private let cancelButton = HoverButton()
 
@@ -23,7 +24,7 @@ final class GIFRecordingHUDController: NSWindowController {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.isReleasedWhenClosed = false
-        panel.title = "GIF 录制"
+        panel.title = L("GIF 录制", "GIF Recording")
         panel.setAccessibilityTitle(panel.title)
         self.init(window: panel)
         buildInterface()
@@ -50,11 +51,11 @@ final class GIFRecordingHUDController: NSWindowController {
             seconds / 60,
             seconds % 60
         )
-        frameLabel.stringValue = "\(frames) 帧"
+        frameLabel.stringValue = L("\(frames) 帧", frames == 1 ? "1 frame" : "\(frames) frames")
     }
 
     func showFinishing(saving: Bool) {
-        titleLabel.stringValue = saving ? "正在保存 GIF…" : "正在取消…"
+        titleLabel.stringValue = saving ? L("正在保存 GIF…", "Saving GIF…") : L("正在取消…", "Canceling…")
         stopButton.isEnabled = false
         cancelButton.isEnabled = false
         stopButton.alphaValue = 0.4
@@ -95,7 +96,7 @@ final class GIFRecordingHUDController: NSWindowController {
         frameLabel.textColor = AppTheme.secondaryText
 
         stopButton.image = AppTheme.symbol("stop.fill", size: 12, weight: .bold)
-        stopButton.toolTip = "停止并保存"
+        stopButton.toolTip = L("停止并保存", "Stop and save")
         stopButton.normalBackground = NSColor.systemRed.withAlphaComponent(0.85)
         stopButton.hoverBackground = NSColor.systemRed
         stopButton.target = self
@@ -103,7 +104,7 @@ final class GIFRecordingHUDController: NSWindowController {
         stopButton.translatesAutoresizingMaskIntoConstraints = false
 
         cancelButton.image = AppTheme.symbol("xmark", size: 11, weight: .bold)
-        cancelButton.toolTip = "取消录制"
+        cancelButton.toolTip = L("取消录制", "Cancel recording")
         cancelButton.target = self
         cancelButton.action = #selector(cancelClicked)
         cancelButton.translatesAutoresizingMaskIntoConstraints = false

@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 import SwiftUI
 
 // MARK: - 布局常量
@@ -106,21 +107,28 @@ struct ActionTile: View {
 struct ChipButton: View {
     let symbol: String
     let title: String
+    var iconOnly = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: symbol)
-                .font(.system(size: 11))
-                .labelStyle(.titleAndIcon)
-                .lineLimit(1)
-                .fixedSize()
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .contentShape(Capsule())
+            Group {
+                if iconOnly {
+                    Image(systemName: symbol)
+                } else {
+                    Label(title, systemImage: symbol).labelStyle(.titleAndIcon)
+                }
+            }
+            .font(.system(size: 11))
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: Capsule())
+        .help(iconOnly ? title : "")
     }
 }
 
@@ -250,16 +258,16 @@ struct PermissionBanner: View {
                 HStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("需要“\(permission.title)”权限").font(.system(size: 12, weight: .semibold))
+                        Text(L("需要“\(permission.title)”权限", "“\(permission.title)” Permission Required")).font(.system(size: 12, weight: .semibold))
                         Text(permission.purpose).font(.system(size: 11)).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("请求权限", action: request).controlSize(.small).buttonStyle(.borderedProminent)
-                        .help("由系统弹出授权提示，Meridian 会自动出现在权限列表中")
+                    Button(L("请求权限", "Request"), action: request).controlSize(.small).buttonStyle(.borderedProminent)
+                        .help(L("由系统弹出授权提示，Meridian 会自动出现在权限列表中", "The system shows a permission prompt and Meridian is added to the permission list automatically"))
                 }
                 HStack(spacing: 14) {
-                    Button("打开\(permission.settingsTitle)") { Permissions.open(permission) }
-                    Button("在访达中显示 Meridian") { Permissions.revealApp() }
+                    Button(L("打开\(permission.settingsTitle)", "Open \(permission.settingsTitle)")) { Permissions.open(permission) }
+                    Button(L("在访达中显示 Meridian", "Show Meridian in Finder")) { Permissions.revealApp() }
                     Spacer()
                 }
                 .buttonStyle(.link).font(.system(size: 10.5))
@@ -274,14 +282,14 @@ struct PermissionBanner: View {
 
     /// 系统权限列表只在“应用请求过”之后才会出现 Meridian；提示里给出列表缺项时的兜底办法。
     private var hint: String {
-        let drag = "如果列表里没有 Meridian，点“在访达中显示 Meridian”，把 Meridian.app 拖进列表（或点 + 选择它）。"
+        let drag = L("如果列表里没有 Meridian，点“在访达中显示 Meridian”，把 Meridian.app 拖进列表（或点 + 选择它）。", " If Meridian isn't in the list, click “Show Meridian in Finder” and drag Meridian.app into the list (or click + to choose it).")
         switch permission {
         case .screenRecording:
-            return "允许后可能需要退出并重新打开 Meridian 才会生效。" + drag
+            return L("允许后可能需要退出并重新打开 Meridian 才会生效。", "After allowing, you may need to quit and reopen Meridian for it to take effect.") + drag
         case .accessibility:
-            return "macOS 27 将此页显示为“设备控制和数据访问”；打开 Meridian 后通常无需重启，回到应用即可刷新状态。" + drag
+            return L("macOS 27 将此页显示为“设备控制和数据访问”；打开 Meridian 后通常无需重启，回到应用即可刷新状态。", "macOS 27 shows this page as “Device Control & Data Access”; after turning on Meridian, there's usually no need to restart—return to the app to refresh.") + drag
         case .inputMonitoring:
-            return "在“输入监控”里打开 Meridian 即可。" + drag
+            return L("在“输入监控”里打开 Meridian 即可。", "Turn on Meridian under “Input Monitoring”.") + drag
         }
     }
 }
@@ -323,7 +331,7 @@ struct HotKeyRecorder: View {
             Button {
                 recording ? stop() : begin()
             } label: {
-                Text(recording ? "请按下快捷键…" : (preferences.hotKeys[action]?.displayString ?? "未设置"))
+                Text(recording ? L("请按下快捷键…", "Type Shortcut…") : (preferences.hotKeys[action]?.displayString ?? L("未设置", "None")))
                     .font(.system(size: 12, design: .rounded))
                     .frame(width: 112)
                     .foregroundStyle(recording ? Color.accentColor : (preferences.hotKeys[action] == nil ? .secondary : .primary))
@@ -340,7 +348,7 @@ struct HotKeyRecorder: View {
             .buttonStyle(.plain)
             .disabled(preferences.hotKeys[action] == nil || recording)
             .opacity(preferences.hotKeys[action] == nil || recording ? 0.25 : 1)
-            .help("清除快捷键")
+            .help(L("清除快捷键", "Clear Shortcut"))
             .frame(width: 18)
         }
         .onDisappear { stop() }

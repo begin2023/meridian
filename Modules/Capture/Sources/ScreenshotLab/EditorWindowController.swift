@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 private final class EditorWindow: NSWindow {
     var onCommand: ((NSEvent) -> Bool)?
@@ -28,7 +29,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         let imageHeight = CGFloat(image.height)
         let scale = min(1, min((maxWidth - 56) / imageWidth, (maxHeight - 190) / imageHeight))
         // The editor toolbar keeps its labeled output actions on the top row,
-        // so the window stays at least 1100pt wide (clamped to small screens).
+        // so the window starts at least 1100pt wide; fitToolbarWidth() then
+        // raises the minimum to the toolbar's real width.
         let width = min(
             max(1100, min(maxWidth, imageWidth * scale + 56)),
             max(980, screen.visibleFrame.width - 16)
@@ -41,7 +43,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "编辑截图"
+        window.title = L("编辑截图", "Edit Screenshot")
         window.identifier = NSUserInterfaceItemIdentifier("ScreenshotLabEditor")
         if !ScreenshotLabRuntime.isEmbedded {
             window.appearance = NSAppearance(named: .darkAqua)
@@ -50,7 +52,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             window.appearance = nil
             window.backgroundColor = .windowBackgroundColor
         }
-        window.minSize = NSSize(width: 980, height: 460)
+        window.contentMinSize = NSSize(width: 980, height: 430)
         window.isReleasedWhenClosed = false
         window.center()
 
@@ -60,6 +62,21 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         buildInterface()
         wireActions()
         updateStatus()
+        fitToolbarWidth()
+    }
+
+    /// The toolbar keeps every tool, edit control and output action on one
+    /// row, so the window may never be narrower than that row.
+    private func fitToolbarWidth() {
+        guard let window else { return }
+        toolbar.layoutSubtreeIfNeeded()
+        let minWidth = ceil(toolbar.fittingSize.width)
+        window.contentMinSize = NSSize(width: minWidth, height: window.contentMinSize.height)
+        let content = window.contentRect(forFrameRect: window.frame)
+        if content.width < minWidth {
+            window.setContentSize(NSSize(width: minWidth, height: content.height))
+            window.center()
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -104,6 +121,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         // Standard editing shortcuts keep their normal meaning inside a text field.
         let editingText = window?.firstResponder is NSTextView
         switch key {
+        case "q" where event.isQuitShortcut:
+            window?.performClose(nil)
         case "c" where !editingText && !modifiers.contains(.option):
             performAction(.copy)
         case "s":
@@ -166,7 +185,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
                            hasSelection: canvas.hasSelection, hasAnnotations: canvas.hasAnnotations)
         instructionsLabel.stringValue = canvas.tool.instructions
         dimensionsLabel.stringValue = "\(canvas.image.width) × \(canvas.image.height) px"
-        window?.subtitle = "\(canvas.image.width) × \(canvas.image.height) 像素"
+        window?.subtitle = L("\(canvas.image.width) × \(canvas.image.height) 像素", "\(canvas.image.width) × \(canvas.image.height) pixels")
     }
 
     private func wireActions() {
@@ -202,10 +221,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     func confirmClearAll() {
         guard let window, canvas.hasAnnotations else { return }
         let alert = NSAlert()
-        alert.messageText = "清空所有标注？"
-        alert.informativeText = "截图原图会保留。清空后可以使用 ⌘Z 撤销。"
-        alert.addButton(withTitle: "清空标注")
-        alert.addButton(withTitle: "取消")
+        alert.messageText = L("清空所有标注？", "Clear All Annotations?")
+        alert.informativeText = L("截图原图会保留。清空后可以使用 ⌘Z 撤销。", "The original screenshot is kept. You can undo with ⌘Z.")
+        alert.addButton(withTitle: L("清空标注", "Clear Annotations"))
+        alert.addButton(withTitle: L("取消", "Cancel"))
         alert.beginSheetModal(for: window) { [weak self] response in
             if response == .alertFirstButtonReturn { self?.canvas.clearAll() }
         }

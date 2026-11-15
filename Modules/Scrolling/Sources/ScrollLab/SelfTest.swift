@@ -99,8 +99,12 @@ enum SelfTest {
             && clearEvent.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1) == 0)
 
         // ---- 计划解析 ----
+        // 默认反向是关闭的；显式打开后再检查，不依赖本机已有设置。
+        let reverseBefore = AppSettings.shared.reverse
+        AppSettings.shared.setReverse(true)
         var plan = ScrollEngine.resolvePlan(for: nil)
         check("plan-global-reverse", plan.reverseVertical && plan.reverseHorizontal)
+        AppSettings.shared.setReverse(reverseBefore)
         check("plan-global-smooth", plan.smooth && plan.smoothVertical && plan.smoothHorizontal)
         check("plan-global-step", plan.step == AppSettings.defaultStep)
         let exception = AppException(
@@ -114,6 +118,24 @@ enum SelfTest {
         check("plan-exception-reverse-x", plan.reverseHorizontal == true)
         check("plan-exception-no-smooth", plan.smooth == false)
         check("plan-exception-step", plan.step == 50)
+
+        // 单项覆盖不看全局开关：全局反向关闭时仍可只给某个应用打开反向。
+        let originalReverse = AppSettings.shared.reverse
+        AppSettings.shared.setReverse(false)
+        var override = AppException(name: "Override", bundlePath: "/tmp/O.app", executablePath: "/tmp/O.app/Contents/MacOS/O",
+                                    reverseMode: .on, smoothMode: .off)
+        plan = ScrollEngine.resolvePlan(for: override)
+        check("plan-override-reverse-on", plan.reverseVertical && plan.reverseHorizontal)
+        check("plan-override-smooth-off", !plan.smooth)
+        override.reverseMode = .global
+        plan = ScrollEngine.resolvePlan(for: override)
+        check("plan-override-follows-global", !plan.reverseVertical && plan.step == AppSettings.shared.step)
+        AppSettings.shared.setReverse(originalReverse)
+
+        // 旧版数据（无 reverseMode/smoothMode）迁移为等价的单项设置。
+        let legacyJSON = #"[{"id":"l","name":"L","bundlePath":"/a","executablePath":"/b","inherit":false,"reverse":true,"reverseVertical":true,"reverseHorizontal":true,"smooth":false,"smoothVertical":true,"smoothHorizontal":true,"step":30,"speed":2,"duration":3}]"#
+        let legacy = try? JSONDecoder().decode([AppException].self, from: Data(legacyJSON.utf8))
+        check("legacy-migrate", legacy?.first?.reverseMode == .on && legacy?.first?.smoothMode == .off)
 
         // ---- 合成事件标记 ----
         let marked = CGEvent(

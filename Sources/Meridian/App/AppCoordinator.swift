@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import MeridianLocalization
 
 enum Page: Hashable {
     case overview
@@ -66,6 +67,15 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
         preferences.$enabledFeatures
             .dropFirst()
             .sink { [weak self] enabled in self?.reconcile(enabled) }
+            .store(in: &cancellables)
+        preferences.$languageRevision
+            .dropFirst()
+            .sink { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.installMainMenu()
+                    self?.menuBar.rebuildWidgets()
+                }
+            }
             .store(in: &cancellables)
         preferences.$hotKeys
             .dropFirst()
@@ -150,16 +160,16 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
 
     /// 任何能打开 meridian:// 的程序都能改硬盘、亮度和风扇，先让用户看到具体要做什么。
     private func confirmURLs(_ urls: [URL], completion: @escaping (Bool) -> Void) {
-        let source = NSWorkspace.shared.frontmostApplication?.localizedName ?? "其他程序"
+        let source = NSWorkspace.shared.frontmostApplication?.localizedName ?? L("其他程序", "another app")
         let list = urls.prefix(4).map(\.absoluteString).joined(separator: "\n")
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "允许「\(source)」用链接操作 Meridian？"
-        alert.informativeText = urls.count > 4 ? "\(list)\n…共 \(urls.count) 个" : list
-        alert.addButton(withTitle: "执行")
-        alert.addButton(withTitle: "取消")
+        alert.messageText = L("允许「\(source)」用链接操作 Meridian？", "Allow “\(source)” to control Meridian with a link?")
+        alert.informativeText = urls.count > 4 ? L("\(list)\n…共 \(urls.count) 个", "\(list)\n…\(urls.count) in total") : list
+        alert.addButton(withTitle: L("执行", "Run"))
+        alert.addButton(withTitle: L("取消", "Cancel"))
         alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = "以后不再确认（可在“通用”里重新开启）"
+        alert.suppressionButton?.title = L("以后不再确认（可在“通用”里重新开启）", "Don't ask again (can be turned back on in General)")
         NSApp.activate(ignoringOtherApps: true)
         let response = alert.runModal()
         if alert.suppressionButton?.state == .on { preferences.confirmURLActions = false }
@@ -366,33 +376,33 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu(title: "Meridian")
-        appMenu.addItem(withTitle: "关于 Meridian", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: L("关于 Meridian", "About Meridian"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        let settings = appMenu.addItem(withTitle: "设置…", action: #selector(showSettings), keyEquivalent: ",")
+        let settings = appMenu.addItem(withTitle: L("设置…", "Settings…"), action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "隐藏 Meridian", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: L("隐藏 Meridian", "Hide Meridian"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "退出 Meridian", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L("退出 Meridian", "Quit Meridian"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 
         let editItem = NSMenuItem()
-        let edit = NSMenu(title: "编辑")
-        edit.addItem(withTitle: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
-        edit.addItem(withTitle: "重做", action: Selector(("redo:")), keyEquivalent: "Z")
+        let edit = NSMenu(title: L("编辑", "Edit"))
+        edit.addItem(withTitle: L("撤销", "Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: L("重做", "Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
         edit.addItem(.separator())
-        edit.addItem(withTitle: "剪切", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "拷贝", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edit.addItem(withTitle: "粘贴", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "全选", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        edit.addItem(withTitle: L("剪切", "Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: L("拷贝", "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: L("粘贴", "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: L("全选", "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = edit
         main.addItem(editItem)
 
         let windowItem = NSMenuItem()
-        let window = NSMenu(title: "窗口")
-        window.addItem(withTitle: "关闭", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        window.addItem(withTitle: "最小化", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        let window = NSMenu(title: L("窗口", "Window"))
+        window.addItem(withTitle: L("关闭", "Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        window.addItem(withTitle: L("最小化", "Minimize"), action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = window
         main.addItem(windowItem)
         NSApp.windowsMenu = window

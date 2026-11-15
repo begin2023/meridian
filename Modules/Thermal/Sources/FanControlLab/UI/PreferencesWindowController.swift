@@ -1,5 +1,6 @@
 import AppKit
 import ServiceManagement
+import MeridianLocalization
 
 /// 设置窗口：监控间隔、温度单位、菜单栏显示、开机自启、温控曲线。即时保存；
 /// 曲线阈值支持拖滑块或直接键入，点"应用到风扇"立即以当前曲线生效为策略。
@@ -25,7 +26,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
             backing: .buffered,
             defer: false
         )
-        window.title = "设置"
+        window.title = L("设置", "Settings")
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
@@ -57,7 +58,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         }
 
         // 监控间隔
-        addLabel("刷新间隔：")
+        addLabel(L("刷新间隔：", "Refresh Interval:"))
         let intervalPopup = NSPopUpButton(frame: NSRect(x: 150, y: y - 4, width: 120, height: 26))
         for (title, _) in Self.intervalChoices {
             intervalPopup.addItem(withTitle: title)
@@ -71,9 +72,9 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         y -= 40
 
         // 温度单位
-        addLabel("温度单位：")
-        let unitPopup = NSPopUpButton(frame: NSRect(x: 150, y: y - 4, width: 120, height: 26))
-        unitPopup.addItems(withTitles: ["摄氏度 (°C)", "华氏度 (°F)"])
+        addLabel(L("温度单位：", "Temperature Unit:"))
+        let unitPopup = NSPopUpButton(frame: NSRect(x: 150, y: y - 4, width: 156, height: 26))
+        unitPopup.addItems(withTitles: [L("摄氏度 (°C)", "Celsius (°C)"), L("华氏度 (°F)", "Fahrenheit (°F)")])
         unitPopup.selectItem(at: settings.usesFahrenheit ? 1 : 0)
         unitPopup.target = self
         unitPopup.action = #selector(unitChanged(_:))
@@ -81,9 +82,9 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         y -= 40
 
         // 菜单栏显示温度
-        addLabel("菜单栏温度：")
-        let tempPopup = NSPopUpButton(frame: NSRect(x: 150, y: y - 4, width: 120, height: 26))
-        tempPopup.addItems(withTitles: ["只显示转速", "转速 + CPU 温度"])
+        addLabel(L("菜单栏温度：", "Menu Bar Shows:"))
+        let tempPopup = NSPopUpButton(frame: NSRect(x: 150, y: y - 4, width: 156, height: 26))
+        tempPopup.addItems(withTitles: [L("只显示转速", "RPM Only"), L("转速 + CPU 温度", "RPM + CPU Temp")])
         tempPopup.selectItem(at: settings.menuBarShowsTemperature ? 1 : 0)
         tempPopup.target = self
         tempPopup.action = #selector(menuBarChanged(_:))
@@ -91,7 +92,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         y -= 40
 
         // 最大转速上限
-        addLabel("最大转速上限：")
+        addLabel(L("最大转速上限：", "Max Speed Cap:"))
         let capPopup = NSPopUpButton(frame: NSRect(x: 150, y: y - 4, width: 120, height: 26))
         let capChoices: [(String, Double)] = [
             ("80%", 0.8), ("85%", 0.85), ("90%", 0.9), ("95%", 0.95), ("100%", 1.0),
@@ -108,7 +109,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         y -= 40
 
         // 开机自启由统一 Shell 管理；本地开发窗口不注册登录项。
-        let loginLabel = NSTextField(labelWithString: "登录启动：由统一 Shell 管理")
+        let loginLabel = NSTextField(labelWithString: L("登录启动：由统一 Shell 管理", "Launch at login is managed by the shell"))
         loginLabel.font = AppTheme.font(ofSize: 12)
         loginLabel.textColor = AppTheme.secondaryText
         loginLabel.frame = NSRect(x: 24, y: y, width: 260, height: 20)
@@ -116,14 +117,14 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         y -= 44
 
         // 温控曲线（"基于温度"模式的默认阈值，可在每风扇对话框覆盖）
-        let curveHeader = NSTextField(labelWithString: "温控曲线：")
+        let curveHeader = NSTextField(labelWithString: L("温控曲线：", "Temperature Curve:"))
         curveHeader.font = AppTheme.font(ofSize: 13, weight: .semibold)
         curveHeader.textColor = AppTheme.primaryText
         curveHeader.frame = NSRect(x: 24, y: y, width: 160, height: 20)
         container.addSubview(curveHeader)
         y -= 30
 
-        addLabel("开始提速温度：")
+        addLabel(L("开始提速温度：", "Ramp-Up Temp:"))
         let increaseSlider = ClosureSlider(value: settings.defaultIncreaseAt, minValue: 40, maxValue: 90)
         increaseSlider.frame = NSRect(x: 150, y: y - 4, width: 150, height: 24)
         let increaseField = Self.temperatureField(value: settings.formattedTemperature(settings.defaultIncreaseAt))
@@ -137,7 +138,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         self.increaseField = increaseField
         y -= 32
 
-        addLabel("满载温度：")
+        addLabel(L("满载温度：", "Full-Speed Temp:"))
         let maxSlider = ClosureSlider(value: settings.defaultMaxAt, minValue: 60, maxValue: 105)
         maxSlider.frame = NSRect(x: 150, y: y - 4, width: 150, height: 24)
         let maxField = Self.temperatureField(value: settings.formattedTemperature(settings.defaultMaxAt))
@@ -163,22 +164,22 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         self.previewLabel = preview
 
         if readOnly {
-            let hint = NSTextField(labelWithString: "当前为只读监控；风扇写入与特权助手的安装均已禁用。")
+            let hint = NSTextField(labelWithString: L("当前为只读监控；风扇写入与特权助手的安装均已禁用。", "Read-only: fan writes and helper installation are disabled."))
             hint.font = AppTheme.font(ofSize: 11)
             hint.textColor = AppTheme.secondaryText
             hint.frame = NSRect(x: 24, y: 36, width: 332, height: 22)
             container.addSubview(hint)
         } else {
             // 应用按钮：把当前曲线立即设为风扇策略（免去再去菜单点一次）
-            let hint = NSTextField(labelWithString: "将当前曲线应用到所有风扇：")
+            let hint = NSTextField(labelWithString: L("将当前曲线应用到所有风扇：", "Apply current curve to all fans:"))
             hint.font = AppTheme.font(ofSize: 12)
             hint.textColor = AppTheme.secondaryText
             hint.frame = NSRect(x: 24, y: 40, width: 220, height: 18)
             container.addSubview(hint)
-            let applyButton = NSButton(title: "应用到风扇", target: self, action: #selector(applyCurveClicked(_:)))
+            let applyButton = NSButton(title: L("应用到风扇", "Apply to Fans"), target: self, action: #selector(applyCurveClicked(_:)))
             applyButton.bezelStyle = .rounded
             applyButton.font = AppTheme.font(ofSize: 12)
-            applyButton.frame = NSRect(x: 262, y: 32, width: 94, height: 28)
+            applyButton.frame = NSRect(x: 250, y: 32, width: 106, height: 28)
             container.addSubview(applyButton)
         }
 
@@ -288,9 +289,12 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
     }
 
     /// 刷新间隔选项（索引与弹出菜单条目一一对应）。
-    private static let intervalChoices: [(String, TimeInterval)] = [
-        ("1 秒", 1.0), ("1.5 秒", 1.5), ("2 秒", 2.0), ("3 秒", 3.0), ("5 秒", 5.0),
-    ]
+    private static var intervalChoices: [(String, TimeInterval)] {
+        [1.0, 1.5, 2.0, 3.0, 5.0].map { seconds in
+            let number = seconds == seconds.rounded() ? String(Int(seconds)) : String(seconds)
+            return (L("\(number) 秒", "\(number) s"), seconds)
+        }
+    }
 
     // MARK: - 动作
 
@@ -329,7 +333,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         guard !readOnly else { return }
         guard applyCurveHandler?() == true else { return }
         let original = sender.title
-        sender.title = "已应用 ✓"
+        sender.title = L("已应用 ✓", "Applied ✓")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak sender] in
             sender?.title = original
         }
@@ -347,7 +351,7 @@ final class PreferencesWindowController: NSWindowController, NSTextFieldDelegate
         } catch {
             sender.state = settings.launchAtLogin ? .on : .off
             let alert = NSAlert()
-            alert.messageText = "无法修改开机自启"
+            alert.messageText = L("无法修改开机自启", "Couldn’t Change Launch at Login")
             alert.informativeText = error.localizedDescription
             alert.runModal()
         }

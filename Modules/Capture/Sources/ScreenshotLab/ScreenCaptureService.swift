@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import ImageIO
+import MeridianLocalization
 import ScreenCaptureKit
 
 struct ScreenSnapshot {
@@ -20,13 +21,16 @@ enum ScreenCaptureError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .permissionDenied:
-            return "需要屏幕录制权限才能截图。请在“系统设置 > 隐私与安全性 > 屏幕录制”中允许 \(ScreenshotLabIdentity.displayName)。"
+            return L(
+                "需要屏幕录制权限才能截图。请在“系统设置 > 隐私与安全性 > 屏幕录制”中允许 \(ScreenshotLabIdentity.displayName)。",
+                "Screen Recording permission is required to take screenshots. Allow \(ScreenshotLabIdentity.displayName) in System Settings > Privacy & Security > Screen Recording."
+            )
         case .displayNotFound:
-            return "没有找到可截取的显示器。"
+            return L("没有找到可截取的显示器。", "No display available to capture.")
         case .windowNotFound:
-            return "没有找到可截取的活动窗口。"
+            return L("没有找到可截取的活动窗口。", "No active window available to capture.")
         case .captureFailed(let message):
-            return "截屏失败：\(message)"
+            return L("截屏失败：\(message)", "Screen capture failed: \(message)")
         }
     }
 }
@@ -178,7 +182,7 @@ enum ScreenCaptureService {
                   let image = CGImageSourceCreateImageAtIndex(source, 0, [
                     kCGImageSourceShouldCacheImmediately: true,
                   ] as CFDictionary) else {
-                throw ScreenCaptureError.captureFailed("无法读取系统截图")
+                throw ScreenCaptureError.captureFailed(L("无法读取系统截图", "Couldn’t read the system screenshot"))
             }
             try? FileManager.default.removeItem(at: outputURL)
             return image

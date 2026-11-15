@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import MeridianLocalization
 
 // 内存模块:分类明细 + 占用曲线 + 内存占用最高的进程。
 final class RAMModule: BaseModule {
@@ -26,7 +27,7 @@ final class RAMModule: BaseModule {
     private var processList: ProcessListView?
 
     init() {
-        super.init(id: "ram", displayName: "内存")
+        super.init(id: "ram", displayName: L("内存", "Memory"))
     }
 
     override func sample() {
@@ -139,7 +140,7 @@ final class RAMModule: BaseModule {
         ))
 
         valueLabel?.stringValue = Format.bytes(Double(snapshot.usedBytes))
-        totalLabel?.stringValue = "共 \(Format.bytes(Double(snapshot.totalBytes)))"
+        totalLabel?.stringValue = L("共 \(Format.bytes(Double(snapshot.totalBytes)))", "of \(Format.bytes(Double(snapshot.totalBytes)))")
         graphView?.values = history
         barView?.segments = [
             BarMeterView.Segment(fraction: usedFraction, color: AppTheme.accent)
@@ -151,7 +152,7 @@ final class RAMModule: BaseModule {
             legendRows[2].value = Format.bytes(Double(snapshot.compressedBytes))
             legendRows[3].value = snapshot.swapTotalBytes > 0
                 ? "\(Format.bytes(Double(snapshot.swapUsedBytes))) / \(Format.bytes(Double(snapshot.swapTotalBytes)))"
-                : "未启用"
+                : L("未启用", "Off")
             legendRows[4].value = Format.bytes(Double(snapshot.freeBytes))
         }
 
@@ -172,7 +173,7 @@ final class RAMModule: BaseModule {
         header.orientation = .horizontal
         header.alignment = .firstBaseline
         header.spacing = 8
-        let titleLabel = NSTextField(labelWithString: "内存")
+        let titleLabel = NSTextField(labelWithString: L("内存", "Memory"))
         titleLabel.font = AppTheme.font(ofSize: 15, weight: .semibold)
         titleLabel.textColor = AppTheme.primaryText
         let totalLabel = NSTextField(labelWithString: "")
@@ -213,7 +214,7 @@ final class RAMModule: BaseModule {
             NSColor(calibratedRed: 1.0, green: 0.45, blue: 0.45, alpha: 1),
             NSColor(calibratedWhite: 0.55, alpha: 1),
         ]
-        let names = ["应用内存", "联动内存", "已压缩", "已用交换", "可用"]
+        let names = [L("应用内存", "App Memory"), L("联动内存", "Wired Memory"), L("已压缩", "Compressed"), L("已用交换", "Swap Used"), L("可用", "Free")]
         var rows: [LegendRowView] = []
         for (index, name) in names.enumerated() {
             let row = LegendRowView(name: name, color: legendColors[index])
@@ -229,7 +230,7 @@ final class RAMModule: BaseModule {
         graph.heightAnchor.constraint(equalToConstant: 56).isActive = true
 
         // Top 进程
-        let processList = ProcessListView(title: "内存占用最高的进程", limit: 5)
+        let processList = ProcessListView(title: L("内存占用最高的进程", "Top Memory Processes"), limit: 5)
 
         stack.addArrangedSubview(header)
         stack.setCustomSpacing(12, after: header)

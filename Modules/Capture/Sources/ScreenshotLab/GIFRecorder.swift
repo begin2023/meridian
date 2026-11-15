@@ -2,6 +2,7 @@ import AppKit
 import CoreMedia
 import CoreVideo
 import Foundation
+import MeridianLocalization
 import ScreenCaptureKit
 
 struct GIFCaptureRegion {
@@ -20,15 +21,15 @@ enum GIFRecorderError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .alreadyRecording:
-            return "已经有一个 GIF 录制任务。"
+            return L("已经有一个 GIF 录制任务。", "A GIF recording is already in progress.")
         case .displayNotFound:
-            return "无法找到 GIF 录制区域对应的显示器。"
+            return L("无法找到 GIF 录制区域对应的显示器。", "Couldn’t find the display for the GIF recording area.")
         case .streamSetupFailed(let message):
-            return "无法开始 GIF 录制：\(message)"
+            return L("无法开始 GIF 录制：\(message)", "Couldn’t start GIF recording: \(message)")
         case .frameConversionFailed:
-            return "无法把屏幕帧转换成图片。"
+            return L("无法把屏幕帧转换成图片。", "Couldn’t convert a screen frame to an image.")
         case .stopFailed(let message):
-            return "停止 GIF 录制失败：\(message)"
+            return L("停止 GIF 录制失败：\(message)", "Couldn’t stop GIF recording: \(message)")
         }
     }
 }

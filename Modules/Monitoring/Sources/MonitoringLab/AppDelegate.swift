@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static weak var shared: AppDelegate?
@@ -89,10 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image = AppTheme.symbol("gauge", size: 15, weight: .medium)
         item.button?.toolTip = "MonitoringLab"
         let menu = NSMenu()
-        menu.addItem(withTitle: "偏好设置…", action: #selector(openPreferencesAction), keyEquivalent: ",")
-        menu.addItem(withTitle: "显示所有窗口", action: #selector(showAllWindowsAction), keyEquivalent: "")
+        menu.addItem(withTitle: L("偏好设置…", "Settings…"), action: #selector(openPreferencesAction), keyEquivalent: ",")
+        menu.addItem(withTitle: L("显示所有窗口", "Show All Windows"), action: #selector(showAllWindowsAction), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "退出 MonitoringLab", action: #selector(quitAction), keyEquivalent: "q")
+        menu.addItem(withTitle: L("退出 MonitoringLab", "Quit MonitoringLab"), action: #selector(quitAction), keyEquivalent: "q")
         menu.items.forEach { $0.target = self }
         item.menu = menu
         hostStatusItem = item

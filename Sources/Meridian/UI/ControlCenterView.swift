@@ -1,6 +1,7 @@
 import AppKit
 import DisplayLabKit
 import FanControlLabKit
+import MeridianLocalization
 import MonitoringLabKit
 import SwiftUI
 
@@ -27,6 +28,7 @@ struct ControlCenterView: View {
             // 关闭后卸载模型订阅，避免不可见的面板仍随采样重新布局。
             if state.isPresented { panelContent }
         }
+        .id(preferences.languageRevision)
         .frame(width: Metrics.panelWidth)
     }
 
@@ -34,11 +36,11 @@ struct ControlCenterView: View {
         switch state.route {
         case .home: home
         case .cpu: DetailContainer(title: "CPU", state: state, coordinator: coordinator) { CPUDetail(model: coordinator.telemetry) }
-        case .memory: DetailContainer(title: "内存", state: state, coordinator: coordinator) { MemoryDetail(model: coordinator.telemetry) }
-        case .network: DetailContainer(title: "网络", state: state, coordinator: coordinator) { NetworkDetail(model: coordinator.telemetry) }
-        case .disk: DetailContainer(title: "磁盘", state: state, coordinator: coordinator) { DiskDetail(model: coordinator.telemetry) }
+        case .memory: DetailContainer(title: L("内存", "Memory"), state: state, coordinator: coordinator) { MemoryDetail(model: coordinator.telemetry) }
+        case .network: DetailContainer(title: L("网络", "Network"), state: state, coordinator: coordinator) { NetworkDetail(model: coordinator.telemetry) }
+        case .disk: DetailContainer(title: L("磁盘", "Disk"), state: state, coordinator: coordinator) { DiskDetail(model: coordinator.telemetry) }
         case .gpu: DetailContainer(title: "GPU", state: state, coordinator: coordinator) { GPUDetail(model: coordinator.telemetry) }
-        case .thermal: DetailContainer(title: "风扇与温度", state: state, coordinator: coordinator) { ThermalDetail(model: coordinator.thermal) }
+        case .thermal: DetailContainer(title: L("风扇与温度", "Fans & Temperature"), state: state, coordinator: coordinator) { ThermalDetail(model: coordinator.thermal) }
         }
     }
 
@@ -56,7 +58,7 @@ struct ControlCenterView: View {
                     if preferences.isEnabled(.pointer) { PointerCard(model: coordinator.pointer) }
                     if preferences.isEnabled(.telemetry) { TelemetryCard(model: coordinator.telemetry, state: state) }
                     if preferences.enabledFeatures.isEmpty {
-                        Text("所有功能都已关闭。打开主窗口可以重新启用。")
+                        Text(L("所有功能都已关闭。打开主窗口可以重新启用。", "All features are off. Open the main window to turn them back on."))
                             .font(.callout).foregroundStyle(.secondary).padding(.vertical, 30)
                     }
                 }
@@ -97,14 +99,23 @@ private struct PanelHeader: View {
             }
             .buttonStyle(.plain)
             .disabled(title == nil)
-            .help(title == nil ? "" : "回到控制中心")
+            .help(title == nil ? "" : L("回到控制中心", "Back to Control Center"))
             Spacer()
-            circle("macwindow", "打开主窗口") { coordinator.openMain(.overview) }
-            circle("gearshape", "设置") { coordinator.openMain(.overview) }
+            circle("macwindow", L("打开主窗口", "Open Main Window")) { coordinator.openMain(coordinator.navigation.page) }
+            circle("gearshape", L("设置", "Settings")) { coordinator.openMain(settingsPage) }
         }
         .padding(.horizontal, 14)
         .padding(.top, 12)
         .padding(.bottom, 10)
+    }
+
+    /// 齿轮跳到当前面板对应的设置页；首页没有单一归属，进入“通用”。
+    private var settingsPage: Page {
+        switch state.route {
+        case .home: return .general
+        case .cpu, .memory, .network, .disk, .gpu: return .feature(.telemetry)
+        case .thermal: return .feature(.thermal)
+        }
     }
 
     private func circle(_ symbol: String, _ help: String, _ action: @escaping () -> Void) -> some View {
@@ -139,10 +150,10 @@ private struct ConflictStrip: View {
         if !monitor.running.isEmpty {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text("\(monitor.running.map(\.name).joined(separator: "、")) 正在运行，可能与 Meridian 冲突")
+                Text(L("\(monitor.running.map(\.name).joined(separator: "、")) 正在运行，可能与 Meridian 冲突", "\(monitor.running.map(\.name).joined(separator: ", ")) \(monitor.running.count == 1 ? "is" : "are") running and may conflict with Meridian"))
                     .font(.system(size: 11)).lineLimit(2)
                 Spacer(minLength: 0)
-                Button("退出它们") { monitor.quitAll() }.controlSize(.small)
+                Button(L("退出它们", "Quit Them")) { monitor.quitAll() }.controlSize(.small)
             }
             .padding(10)
             .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -158,12 +169,12 @@ private struct CaptureCard: View {
 
     var body: some View {
         PanelCard {
-            CardHeader(feature: .capture, subtitle: model.permissionGranted ? nil : "尚未获得屏幕录制权限") {
+            CardHeader(feature: .capture, subtitle: model.permissionGranted ? nil : L("尚未获得屏幕录制权限", "Screen Recording permission not granted")) {
                 if model.pinCount > 0 {
                     Menu {
-                        Button("显示全部贴图") { model.showPins() }
-                        Button("隐藏全部贴图") { model.hidePins() }
-                        Button("关闭全部贴图") { model.closePins() }
+                        Button(L("显示全部贴图", "Show All Pins")) { model.showPins() }
+                        Button(L("隐藏全部贴图", "Hide All Pins")) { model.hidePins() }
+                        Button(L("关闭全部贴图", "Close All Pins")) { model.closePins() }
                     } label: {
                         Label("\(model.pinCount)", systemImage: "pin.fill").font(.system(size: 11))
                     }
@@ -171,20 +182,17 @@ private struct CaptureCard: View {
                 }
             }
             HStack(spacing: 8) {
-                ActionTile(symbol: "viewfinder", title: "截图", caption: hint(.capture), tint: .blue) { run { model.capture() } }
-                ActionTile(symbol: "text.viewfinder", title: "识字", caption: hint(.ocr), tint: .purple) { run { model.captureOCR() } }
-                ActionTile(symbol: "pin", title: "贴图", caption: hint(.pin), tint: .pink) { run { model.capturePin() } }
+                ActionTile(symbol: "viewfinder", title: L("截图", "Capture"), caption: hint(.capture), tint: .blue) { run { model.capture() } }
+                ActionTile(symbol: "text.viewfinder", title: L("识字", "OCR"), caption: hint(.ocr), tint: .purple) { run { model.captureOCR() } }
+                ActionTile(symbol: "pin", title: L("贴图", "Pin"), caption: hint(.pin), tint: .pink) { run { model.capturePin() } }
                 ActionTile(symbol: model.gifRecording ? "stop.fill" : "record.circle",
-                           title: model.gifRecording ? "停止" : "GIF", caption: hint(.gif), tint: .red,
+                           title: model.gifRecording ? L("停止", "Stop") : "GIF", caption: hint(.gif), tint: .red,
                            active: model.gifRecording) { run { model.toggleGIF() } }
             }
-            HStack(spacing: 5) {
-                ChipButton(symbol: "rectangle.inset.filled", title: "全屏") { run { model.captureFullScreen() } }
-                ChipButton(symbol: "macwindow", title: "窗口") { run { model.captureWindow() } }
-                ChipButton(symbol: "timer", title: "延时") { run { model.captureDelayed(3) } }
-                Spacer(minLength: 0)
-                ChipButton(symbol: "clock.arrow.circlepath", title: "历史") { run { model.showHistory() } }
-                ChipButton(symbol: "photo", title: "打开") { run { model.openImage() } }
+            // 英文标签更长：放不下时历史/打开只显示图标，避免把整个面板撑宽。
+            ViewThatFits(in: .horizontal) {
+                chipRow(compact: false)
+                chipRow(compact: true)
             }
             if !model.permissionGranted {
                 PermissionBanner(permission: .screenRecording, granted: false) { model.requestPermission() }
@@ -194,6 +202,17 @@ private struct CaptureCard: View {
     }
 
     private func hint(_ action: HotKeyAction) -> String? { preferences.hotKeys[action]?.displayString }
+
+    private func chipRow(compact: Bool) -> some View {
+        HStack(spacing: 5) {
+            ChipButton(symbol: "rectangle.inset.filled", title: L("全屏", "Screen")) { run { model.captureFullScreen() } }
+            ChipButton(symbol: "macwindow", title: L("窗口", "Window")) { run { model.captureWindow() } }
+            ChipButton(symbol: "timer", title: L("延时", "Timer")) { run { model.captureDelayed(3) } }
+            Spacer(minLength: 0)
+            ChipButton(symbol: "clock.arrow.circlepath", title: L("历史", "History"), iconOnly: compact) { run { model.showHistory() } }
+            ChipButton(symbol: "photo", title: L("打开", "Open"), iconOnly: compact) { run { model.openImage() } }
+        }
+    }
 
     /// 先收起面板再执行，截图里不会出现面板自身。
     private func run(_ body: @escaping () -> Void) {
@@ -209,11 +228,11 @@ private struct DisplayCard: View {
 
     var body: some View {
         PanelCard {
-            CardHeader(feature: .display, subtitle: model.displays.isEmpty ? "未检测到显示器" : nil) {
+            CardHeader(feature: .display, subtitle: model.displays.isEmpty ? L("未检测到显示器", "No displays detected") : nil) {
                 Button { AppCoordinator.shared.openMain(.feature(.display)) } label: {
                     Image(systemName: "ellipsis.circle").font(.system(size: 14))
                 }
-                .buttonStyle(.plain).foregroundStyle(.secondary).help("更多显示器选项")
+                .buttonStyle(.plain).foregroundStyle(.secondary).help(L("更多显示器选项", "More Display Options"))
             }
             ForEach(model.displays) { display in
                 DisplayRow(model: model, display: display)
@@ -223,30 +242,30 @@ private struct DisplayCard: View {
             HStack(spacing: 8) {
                 Image(systemName: "sun.max.fill").foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("F1 / F2 亮度键").font(.system(size: 12, weight: .medium))
+                    Text(L("F1 / F2 亮度键", "F1 / F2 Brightness Keys")).font(.system(size: 12, weight: .medium))
                     Text(brightnessKeyStatus).font(.system(size: 10.5)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if !permissions.isGranted(.inputMonitoring) || !permissions.isGranted(.accessibility) {
-                    Button("去授权") { Permissions.request(missingBrightnessPermission) }.controlSize(.small)
-                    Button("设置") { Permissions.open(missingBrightnessPermission) }.controlSize(.small)
+                    Button(L("去授权", "Grant")) { Permissions.request(missingBrightnessPermission) }.controlSize(.small)
+                    Button(L("设置", "Settings")) { Permissions.open(missingBrightnessPermission) }.controlSize(.small)
                 } else {
                     Toggle("", isOn: Binding(get: { model.brightnessKeys }, set: {
                         model.brightnessKeys = $0
                         model.saveSettings()
                     }))
                     .toggleStyle(.switch).controlSize(.small).labelsHidden()
-                    .accessibilityLabel("用 F1 / F2 调节显示器亮度")
+                    .accessibilityLabel(L("用 F1 / F2 调节显示器亮度", "Adjust display brightness with F1 / F2"))
                 }
             }
             .padding(.vertical, 2)
             if permissions.isGranted(.inputMonitoring), permissions.isGranted(.accessibility),
                model.brightnessKeys, !model.brightnessKeysActive {
                 HStack {
-                    Text("按键监听尚未生效，请重新打开应用。")
+                    Text(L("按键监听尚未生效，请重新打开应用。", "Key monitoring isn't active yet; please reopen the app."))
                         .font(.system(size: 10.5)).foregroundStyle(.secondary)
                     Spacer()
-                    Button("重新打开") { Permissions.relaunch() }.controlSize(.small)
+                    Button(L("重新打开", "Reopen")) { Permissions.relaunch() }.controlSize(.small)
                 }
             }
             if let message = model.message {
@@ -258,12 +277,12 @@ private struct DisplayCard: View {
 
     private var brightnessKeyStatus: String {
         if !permissions.isGranted(.inputMonitoring) && !permissions.isGranted(.accessibility) {
-            return "需要输入监控和辅助功能权限"
+            return L("需要输入监控和辅助功能权限", "Requires Input Monitoring and Accessibility permissions")
         }
-        if !permissions.isGranted(.inputMonitoring) { return "需要输入监控权限才能接收亮度键" }
-        if !permissions.isGranted(.accessibility) { return "需要辅助功能权限才能接管按键" }
-        if model.brightnessKeys && !model.brightnessKeysActive { return "已开启，等待按键监听生效" }
-        return model.brightnessKeysActive ? "已接管外接显示器亮度键" : "开启后由 F1 / F2 调节支持的显示器"
+        if !permissions.isGranted(.inputMonitoring) { return L("需要输入监控权限才能接收亮度键", "Requires Input Monitoring to receive brightness keys") }
+        if !permissions.isGranted(.accessibility) { return L("需要辅助功能权限才能接管按键", "Requires Accessibility to take over the keys") }
+        if model.brightnessKeys && !model.brightnessKeysActive { return L("已开启，等待按键监听生效", "On; waiting for key monitoring to start") }
+        return model.brightnessKeysActive ? L("已接管外接显示器亮度键", "Handling brightness keys for external displays") : L("开启后由 F1 / F2 调节支持的显示器", "When on, F1 / F2 adjust supported displays")
     }
 
     private var missingBrightnessPermission: Permission {
@@ -301,7 +320,7 @@ private struct DisplayRow: View {
             }
             if display.canBoost {
                 HStack(spacing: 8) {
-                    Text("提升").font(.system(size: 10.5)).foregroundStyle(.secondary)
+                    Text(L("提升", "Boost")).font(.system(size: 10.5)).foregroundStyle(.secondary)
                     Slider(value: $boost, in: 1...display.edrHeadroom) { _ in }
                         .controlSize(.small)
                         .onChange(of: boost) { _, value in
@@ -318,7 +337,7 @@ private struct DisplayRow: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "rectangle.expand.vertical")
-                        Text(display.modeSummary.isEmpty ? "分辨率" : display.modeSummary).monospacedDigit()
+                        Text(display.modeSummary.isEmpty ? L("分辨率", "Resolution") : display.modeSummary).monospacedDigit()
                         Image(systemName: showModes ? "chevron.up" : "chevron.down").font(.system(size: 9, weight: .semibold))
                     }
                 }
@@ -353,16 +372,16 @@ private struct DisplayRow: View {
 
     private var hiDPIHelp: String {
         if display.hiDPICounterpart != nil {
-            return display.isHiDPI ? "关闭 HiDPI：同尺寸改用普通模式" : "打开 HiDPI：同尺寸按 2 倍像素渲染，文字更清晰"
+            return display.isHiDPI ? L("关闭 HiDPI：同尺寸改用普通模式", "Turn off HiDPI: use the standard mode at the same size") : L("打开 HiDPI：同尺寸按 2 倍像素渲染，文字更清晰", "Turn on HiDPI: render at 2× pixels at the same size for sharper text")
         }
-        return display.isHiDPI ? "这个尺寸只有 HiDPI 模式" : "这个尺寸没有 HiDPI 模式，可在“显示器”页写入 HiDPI 档位"
+        return display.isHiDPI ? L("这个尺寸只有 HiDPI 模式", "This size is only available in HiDPI") : L("这个尺寸没有 HiDPI 模式，可在“显示器”页写入 HiDPI 档位", "No HiDPI mode at this size; add HiDPI modes on the Displays page")
     }
 
     private var modeList: some View {
         VStack(alignment: .leading, spacing: 6) {
             if display.refreshRates.count > 1 {
                 HStack(spacing: 4) {
-                    Text("刷新率 Hz").font(.system(size: 10.5)).foregroundStyle(.secondary).fixedSize()
+                    Text(L("刷新率 Hz", "Refresh Hz")).font(.system(size: 10.5)).foregroundStyle(.secondary).fixedSize()
                     ForEach(display.refreshRates, id: \.self) { rate in
                         let on = display.currentResolution?.currentRefreshRate == rate
                         Button(refreshLabel(rate).replacingOccurrences(of: " Hz", with: "")) {
@@ -385,10 +404,10 @@ private struct DisplayRow: View {
                                 .opacity(option.isCurrent ? 1 : 0)
                             Text(option.sizeLabel).font(.system(size: 11.5)).monospacedDigit()
                             if display.isNativeSize(option) {
-                                Text("原生").font(.system(size: 10)).foregroundStyle(.secondary)
+                                Text(L("原生", "Native")).font(.system(size: 10)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 4)
-                            ModeTag(text: option.hiDPI ? "HiDPI" : "普通", highlighted: option.hiDPI)
+                            ModeTag(text: option.hiDPI ? "HiDPI" : L("普通", "Standard"), highlighted: option.hiDPI)
                         }
                         .padding(.horizontal, 8).padding(.vertical, 3.5)
                         .background(option.isCurrent ? Color.accentColor.opacity(0.12) : .clear,
@@ -400,7 +419,7 @@ private struct DisplayRow: View {
             }
             .disabled(model.busy.contains(display.id))
             if !display.isAtNativeSize {
-                Button("恢复原生尺寸") { model.restoreNative(display.id) }
+                Button(L("恢复原生尺寸", "Restore Native Size")) { model.restoreNative(display.id) }
                     .buttonStyle(.link).font(.system(size: 11))
             }
         }
@@ -432,7 +451,7 @@ private struct ThermalCard: View {
         PanelCard {
             CardHeader(feature: .thermal) {
                 Button { state.route = .thermal } label: {
-                    HStack(spacing: 2) { Text("详情"); Image(systemName: "chevron.right") }.font(.system(size: 11))
+                    HStack(spacing: 2) { Text(L("详情", "Details")); Image(systemName: "chevron.right") }.font(.system(size: 11))
                 }
                 .buttonStyle(.plain).foregroundStyle(.secondary)
             }
@@ -442,7 +461,7 @@ private struct ThermalCard: View {
                         Text("\(Int(fan.currentRPM.rounded()))")
                             .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                             .contentTransition(.numericText())
-                        Text(model.fans.count > 1 ? "RPM · \(fan.name)" : "风扇 RPM").font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text(model.fans.count > 1 ? "RPM · \(fan.name)" : L("风扇 RPM", "Fan RPM")).font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
                 if let cpu = model.hottestCPU {
@@ -450,22 +469,22 @@ private struct ThermalCard: View {
                         Text(model.temperature(cpu))
                             .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
                             .foregroundStyle(cpu > 85 ? .red : cpu > 70 ? .orange : .primary)
-                        Text("CPU 平均").font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text(L("CPU 平均", "CPU Avg")).font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
                 if let gpu = model.reading?.gpuAverage {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(model.temperature(gpu))
                             .font(.system(size: 24, weight: .semibold, design: .rounded)).monospacedDigit()
-                        Text("GPU 平均").font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text(L("GPU 平均", "GPU Avg")).font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
                 Spacer(minLength: 0)
             }
             if model.reading == nil && model.running {
-                Text("正在读取传感器…").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(L("正在读取传感器…", "Reading sensors…")).font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            Picker("模式", selection: Binding(get: { model.overallPreset }, commit: { model.apply($0) })) {
+            Picker(L("模式", "Mode"), selection: Binding(get: { model.overallPreset }, commit: { model.apply($0) })) {
                 ForEach(ThermalModel.Preset.allCases) { preset in
                     Text(preset.title).tag(preset)
                 }
@@ -531,18 +550,18 @@ private struct PointerCard: View {
                 .disabled(!model.accessibilityGranted)
             }
             HStack(spacing: 8) {
-                ActionTile(symbol: "water.waves", title: "平滑滚动", tint: .teal,
+                ActionTile(symbol: "water.waves", title: L("平滑滚动", "Smooth Scrolling"), tint: .teal,
                            active: model.accessibilityGranted && model.smooth) {
                     model.set("smooth", !model.smooth)
                 }
                 .disabled(!model.accessibilityGranted)
-                ActionTile(symbol: "arrow.up.arrow.down", title: "反转方向", tint: .teal,
+                ActionTile(symbol: "arrow.up.arrow.down", title: L("反转方向", "Reverse Direction"), tint: .teal,
                            active: model.accessibilityGranted && model.reverse) {
                     model.set("reverse", !model.reverse)
                 }
                 .disabled(!model.accessibilityGranted)
                 ActionTile(symbol: model.paused ? "play.fill" : "pause.fill",
-                           title: model.paused ? "恢复" : "临时暂停", tint: .gray) {
+                           title: model.paused ? L("恢复", "Resume") : L("临时暂停", "Pause"), tint: .gray) {
                     model.togglePause()
                 }
                 .disabled(!model.accessibilityGranted)
@@ -555,10 +574,10 @@ private struct PointerCard: View {
     }
 
     private var status: String {
-        if !model.accessibilityGranted { return "尚未授权，设置已保存但尚未生效" }
-        if model.paused { return "已临时暂停" }
-        if !model.enabled { return "已关闭" }
-        return model.tapActive ? "正在工作 · 仅作用于鼠标滚轮" : "正在启动…"
+        if !model.accessibilityGranted { return L("尚未授权，设置已保存但尚未生效", "Not authorized; settings are saved but not yet in effect") }
+        if model.paused { return L("已临时暂停", "Paused") }
+        if !model.enabled { return L("已关闭", "Off") }
+        return model.tapActive ? L("正在工作 · 仅作用于鼠标滚轮", "Active · Mouse wheel only") : L("正在启动…", "Starting…")
     }
 }
 
@@ -576,20 +595,20 @@ private struct TelemetryCard: View {
                 GridRow {
                     MetricTile(title: "CPU", value: Format.percent(s.cpuPercent), values: model.cpuHistory,
                                max: 100, color: .green) { state.route = .cpu }
-                    MetricTile(title: "内存", value: Format.percent(s.memoryFraction * 100), values: model.memoryHistory,
+                    MetricTile(title: L("内存", "Memory"), value: Format.percent(s.memoryFraction * 100), values: model.memoryHistory,
                                max: 100, color: .blue) { state.route = .memory }
                 }
                 GridRow {
-                    MetricTile(title: "网络", value: "↓\(Format.compactRate(s.netDownPerSecond)) ↑\(Format.compactRate(s.netUpPerSecond))",
+                    MetricTile(title: L("网络", "Network"), value: "↓\(Format.compactRate(s.netDownPerSecond)) ↑\(Format.compactRate(s.netUpPerSecond))",
                                values: model.downHistory, secondary: model.upHistory, color: .cyan) { state.route = .network }
-                    MetricTile(title: "磁盘", value: "R \(Format.compactRate(s.diskReadPerSecond)) W \(Format.compactRate(s.diskWritePerSecond))",
+                    MetricTile(title: L("磁盘", "Disk"), value: "R \(Format.compactRate(s.diskReadPerSecond)) W \(Format.compactRate(s.diskWritePerSecond))",
                                values: model.readHistory, secondary: model.writeHistory, color: .indigo) { state.route = .disk }
                 }
                 if s.gpu.available {
                     GridRow {
                         MetricTile(title: "GPU", value: Format.percent(s.gpu.utilization), values: model.gpuHistory,
                                    max: 100, color: .purple) { state.route = .gpu }
-                        MetricTile(title: "GPU 功耗", value: s.gpu.powerWatts.map(Format.watts) ?? "--",
+                        MetricTile(title: L("GPU 功耗", "GPU Power"), value: s.gpu.powerWatts.map(Format.watts) ?? "--",
                                    values: model.gpuPowerHistory, color: .orange) { state.route = .gpu }
                     }
                 }

@@ -1,4 +1,5 @@
 import AppKit
+import MeridianLocalization
 
 enum CaptureAction {
     case gif
@@ -20,8 +21,8 @@ final class CaptureActionBar: FrostedBarView {
             let isGIF = button.identifier?.rawValue == "\(CaptureAction.gif)"
             button.normalBackground = isGIF ? AppTheme.accent : .clear
             button.hoverBackground = isGIF ? AppTheme.accent : NSColor.white.withAlphaComponent(0.12)
-            if isGIF { button.toolTip = "开始录制 GIF (Enter / G)" }
-            if button.identifier?.rawValue == "\(CaptureAction.copy)" { button.toolTip = "复制 (C)" }
+            if isGIF { button.toolTip = L("开始录制 GIF (Enter / G)", "Start recording GIF (Enter / G)") }
+            if button.identifier?.rawValue == "\(CaptureAction.copy)" { button.toolTip = L("复制 (C)", "Copy (C)") }
         }
     }
 
@@ -49,12 +50,12 @@ final class CaptureActionBar: FrostedBarView {
             stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
         ])
 
-        addButton(symbol: "record.circle", tooltip: "录制 GIF (G)", action: .gif)
-        addButton(symbol: "pencil.tip", tooltip: "编辑标注 (E)", action: .edit)
-        addButton(symbol: "pin", tooltip: "钉在屏幕上 (P)", action: .pin)
-        addButton(symbol: "text.viewfinder", tooltip: "提取文字 (O)", action: .ocr)
-        addButton(symbol: "square.and.arrow.down", tooltip: "保存 (S)", action: .save)
-        addButton(symbol: "doc.on.doc.fill", tooltip: "复制 (Enter)", action: .copy, accent: true)
+        addButton(symbol: "record.circle", tooltip: L("录制 GIF (G)", "Record GIF (G)"), action: .gif)
+        addButton(symbol: "pencil.tip", tooltip: L("编辑标注 (E)", "Annotate (E)"), action: .edit)
+        addButton(symbol: "pin", tooltip: L("钉在屏幕上 (P)", "Pin to screen (P)"), action: .pin)
+        addButton(symbol: "text.viewfinder", tooltip: L("提取文字 (O)", "Extract text (O)"), action: .ocr)
+        addButton(symbol: "square.and.arrow.down", tooltip: L("保存 (S)", "Save (S)"), action: .save)
+        addButton(symbol: "doc.on.doc.fill", tooltip: L("复制 (Enter)", "Copy (Enter)"), action: .copy, accent: true)
     }
 
     private func addButton(
@@ -185,18 +186,78 @@ final class CaptureOverlayView: NSView {
         if !selection.isEmpty {
             revealActionBar()
         }
+        if let window {
+            updateCursor(at: convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        }
     }
 
-    override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .crosshair)
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(
+            rect: .zero,
+            options: [.activeAlways, .inVisibleRect, .cursorUpdate, .mouseMoved],
+            owner: self,
+            userInfo: nil
+        ))
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        updateCursor(at: convert(event.locationInWindow, from: nil))
     }
 
     override func mouseMoved(with event: NSEvent) {
         mouseLocation = convert(event.locationInWindow, from: nil)
-        if selection == .zero {
-            window?.invalidateCursorRects(for: self)
-        }
+        updateCursor(at: mouseLocation)
         needsDisplay = true
+    }
+
+    /// 十字准星只用于拉出新选区；边框和角上显示对应方向的缩放光标，
+    /// 选区内部显示抓手，操作栏上恢复普通箭头。
+    private func updateCursor(at point: CGPoint) {
+        let cursor: NSCursor
+        switch dragMode {
+        case .moving:
+            cursor = .closedHand
+        case .resizing:
+            cursor = Self.resizeCursor(for: activeHitZone)
+        case .creating:
+            cursor = .crosshair
+        case .none:
+            if !actionBar.isHidden, actionBar.frame.contains(point) {
+                cursor = .arrow
+            } else {
+                switch hitZone(at: point) {
+                case .none: cursor = .crosshair
+                case .inside: cursor = .openHand
+                case let zone: cursor = Self.resizeCursor(for: zone)
+                }
+            }
+        }
+        cursor.set()
+    }
+
+    private static func resizeCursor(for zone: HitZone) -> NSCursor {
+        if #available(macOS 15.0, *) {
+            let position: NSCursor.FrameResizePosition
+            switch zone {
+            case .left: position = .left
+            case .right: position = .right
+            case .top: position = .top
+            case .bottom: position = .bottom
+            case .topLeft: position = .topLeft
+            case .topRight: position = .topRight
+            case .bottomLeft: position = .bottomLeft
+            case .bottomRight: position = .bottomRight
+            case .none, .inside: return .crosshair
+            }
+            return .frameResize(position: position, directions: .all)
+        }
+        switch zone {
+        case .left, .right: return .resizeLeftRight
+        case .top, .bottom: return .resizeUpDown
+        default: return .crosshair
+        }
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -218,6 +279,7 @@ final class CaptureOverlayView: NSView {
             initialSelection = selection
             activeHitZone = hitZone
         }
+        updateCursor(at: point)
         needsDisplay = true
     }
 
@@ -251,6 +313,7 @@ final class CaptureOverlayView: NSView {
     override func mouseUp(with event: NSEvent) {
         dragMode = nil
         activeHitZone = .none
+        defer { updateCursor(at: convert(event.locationInWindow, from: nil)) }
         if selection.width < 2 || selection.height < 2 {
             selection = .zero
             hideActionBar()
@@ -383,7 +446,9 @@ final class CaptureOverlayView: NSView {
     }
 
     private func drawInstruction() {
-        let text = forGIF ? "拖动选择录制区域    Enter 开始 GIF    Esc 取消" : "拖动选择截图区域    Esc 取消"
+        let text = forGIF
+            ? L("拖动选择录制区域    Enter 开始 GIF    Esc 取消", "Drag to select the recording area    Enter starts GIF    Esc cancels")
+            : L("拖动选择截图区域    Esc 取消", "Drag to select an area    Esc cancels")
         let attributes: [NSAttributedString.Key: Any] = [
             .font: AppTheme.font(ofSize: 14, weight: .medium),
             .foregroundColor: NSColor.white.withAlphaComponent(0.88),
@@ -815,7 +880,7 @@ final class CaptureOverlayWindow: NSWindow {
             backing: .buffered,
             defer: false
         )
-        title = forGIF ? "GIF 录制选区" : "区域截图"
+        title = forGIF ? L("GIF 录制选区", "GIF Recording Area") : L("区域截图", "Capture Area")
         setAccessibilityTitle(title)
 
         overlayView.onAction = onAction
@@ -855,4 +920,12 @@ final class CaptureOverlayWindow: NSWindow {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.isQuitShortcut {
+            overlayView.onCancel?()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }

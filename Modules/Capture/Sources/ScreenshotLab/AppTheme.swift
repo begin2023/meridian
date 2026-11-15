@@ -41,6 +41,16 @@ enum AppTheme {
     }
 }
 
+extension NSEvent {
+    /// ⌘Q 在截图相关窗口里只关闭当前窗口：这些窗口由宿主应用托管，
+    /// 不应借系统菜单退出整个 Meridian。
+    var isQuitShortcut: Bool {
+        type == .keyDown
+            && modifierFlags.intersection(.deviceIndependentFlagsMask) == .command
+            && charactersIgnoringModifiers?.lowercased() == "q"
+    }
+}
+
 class HoverButton: NSButton {
     private var trackingAreaReference: NSTrackingArea?
     private var hovering = false {

@@ -1,5 +1,6 @@
 import AppKit
 import UniformTypeIdentifiers
+import MeridianLocalization
 
 /// 偏好设置窗口：左侧分栏（滚动 / 例外 / 通用），右侧内容区。
 /// 与工具包其他模块保持一致的设置界面。
@@ -11,9 +12,9 @@ final class PreferencesWindowController: NSWindowController {
 
         var title: String {
             switch self {
-            case .scrolling: return "滚动"
-            case .exceptions: return "应用例外"
-            case .general: return "通用"
+            case .scrolling: return L("滚动", "Scrolling")
+            case .exceptions: return L("应用例外", "App Exceptions")
+            case .general: return L("通用", "General")
             }
         }
 
@@ -32,13 +33,13 @@ final class PreferencesWindowController: NSWindowController {
     private var sectionLabels: [NSTextField] = []
 
     // 滚动页控件
-    private let reverseCheckbox = NSButton(checkboxWithTitle: "反向滚轮（仅鼠标，触控板不受影响）", target: nil, action: nil)
-    private let reverseVerticalCheckbox = NSButton(checkboxWithTitle: "垂直方向", target: nil, action: nil)
-    private let reverseHorizontalCheckbox = NSButton(checkboxWithTitle: "水平方向", target: nil, action: nil)
-    private let smoothCheckbox = NSButton(checkboxWithTitle: "平滑滚动", target: nil, action: nil)
-    private let smoothVerticalCheckbox = NSButton(checkboxWithTitle: "垂直方向", target: nil, action: nil)
-    private let smoothHorizontalCheckbox = NSButton(checkboxWithTitle: "水平方向", target: nil, action: nil)
-    private let simTrackpadCheckbox = NSButton(checkboxWithTitle: "模拟触控板事件语义（实验性）", target: nil, action: nil)
+    private let reverseCheckbox = NSButton(checkboxWithTitle: L("反向滚轮（仅鼠标，触控板不受影响）", "Reverse scroll wheel (mouse only, trackpad unaffected)"), target: nil, action: nil)
+    private let reverseVerticalCheckbox = NSButton(checkboxWithTitle: L("垂直方向", "Vertical"), target: nil, action: nil)
+    private let reverseHorizontalCheckbox = NSButton(checkboxWithTitle: L("水平方向", "Horizontal"), target: nil, action: nil)
+    private let smoothCheckbox = NSButton(checkboxWithTitle: L("平滑滚动", "Smooth Scrolling"), target: nil, action: nil)
+    private let smoothVerticalCheckbox = NSButton(checkboxWithTitle: L("垂直方向", "Vertical"), target: nil, action: nil)
+    private let smoothHorizontalCheckbox = NSButton(checkboxWithTitle: L("水平方向", "Horizontal"), target: nil, action: nil)
+    private let simTrackpadCheckbox = NSButton(checkboxWithTitle: L("模拟触控板事件语义（实验性）", "Emulate trackpad event semantics (experimental)"), target: nil, action: nil)
     private let stepSlider = NSSlider(value: 33.6, minValue: 5, maxValue: 200, target: nil, action: nil)
     private let speedSlider = NSSlider(value: 2.7, minValue: 1, maxValue: 10, target: nil, action: nil)
     private let durationSlider = NSSlider(value: 4.35, minValue: 0, maxValue: 5, target: nil, action: nil)
@@ -49,15 +50,15 @@ final class PreferencesWindowController: NSWindowController {
     // 例外页控件
     private let exceptionListTableView = NSTableView()
     private let allowlistCheckbox = NSButton(
-        checkboxWithTitle: "白名单模式（仅列表中的应用启用 ScrollLab）",
+        checkboxWithTitle: L("白名单模式（仅列表中的应用启用 ScrollLab）", "Allowlist mode (enable ScrollLab only for listed apps)"),
         target: nil,
         action: nil
     )
     private var exceptionScrollView: NSScrollView!
 
     // 通用页控件
-    private let launchCheckbox = NSButton(checkboxWithTitle: "登录后自动启动 ScrollLab", target: nil, action: nil)
-    private let hideIconCheckbox = NSButton(checkboxWithTitle: "隐藏菜单栏图标", target: nil, action: nil)
+    private let launchCheckbox = NSButton(checkboxWithTitle: L("登录后自动启动 ScrollLab", "Launch ScrollLab at login"), target: nil, action: nil)
+    private let hideIconCheckbox = NSButton(checkboxWithTitle: L("隐藏菜单栏图标", "Hide menu bar icon"), target: nil, action: nil)
     private let permissionLabel = NSTextField(labelWithString: "")
 
     private var currentSection: Section = .scrolling
@@ -69,7 +70,7 @@ final class PreferencesWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "ScrollLab 偏好设置"
+        window.title = L("ScrollLab 偏好设置", "ScrollLab Settings")
         window.isReleasedWhenClosed = false
         window.center()
         self.init(window: window)
@@ -214,8 +215,8 @@ final class PreferencesWindowController: NSWindowController {
         simTrackpadCheckbox.action = #selector(simTrackpadChanged)
 
         let reverseGroup = groupView(
-            title: "反向滚轮",
-            hint: "滚轮向下页面向上——方向整体翻转，仅对鼠标滚轮生效",
+            title: L("反向滚轮", "Reverse Scroll Wheel"),
+            hint: L("滚轮向下页面向上——方向整体翻转，仅对鼠标滚轮生效", "Scroll down to move the page up — flips direction for the mouse wheel only"),
             content: [
                 reverseCheckbox,
                 indentView(reverseVerticalCheckbox),
@@ -223,8 +224,8 @@ final class PreferencesWindowController: NSWindowController {
             ]
         )
         let smoothGroup = groupView(
-            title: "平滑滚动",
-            hint: "把滚轮的离散步距插值为连续滚动，动画在显示器刷新率上渲染",
+            title: L("平滑滚动", "Smooth Scrolling"),
+            hint: L("把滚轮的离散步距插值为连续滚动，动画在显示器刷新率上渲染", "Interpolates discrete wheel steps into continuous scrolling, animated at the display’s refresh rate"),
             content: [
                 smoothCheckbox,
                 indentView(smoothVerticalCheckbox),
@@ -287,10 +288,10 @@ final class PreferencesWindowController: NSWindowController {
         speedSlider.action = #selector(speedSliderChanged)
         durationSlider.action = #selector(durationSliderChanged)
 
-        let stepRow = sliderRow(stepSlider, stepLabel, title: "步长")
-        let speedRow = sliderRow(speedSlider, speedLabel, title: "速度")
-        let durationRow = sliderRow(durationSlider, durationLabel, title: "时长")
-        let hint = NSTextField(labelWithString: "步长：单格滚轮的基础距离　速度：缓冲倍率　时长：动画衰减快慢")
+        let stepRow = sliderRow(stepSlider, stepLabel, title: L("步长", "Step"))
+        let speedRow = sliderRow(speedSlider, speedLabel, title: L("速度", "Speed"))
+        let durationRow = sliderRow(durationSlider, durationLabel, title: L("时长", "Duration"))
+        let hint = NSTextField(labelWithString: L("步长：单格滚轮的基础距离　速度：缓冲倍率　时长：动画衰减快慢", "Step: base distance per wheel notch   Speed: acceleration   Duration: animation decay"))
         hint.font = AppTheme.font(ofSize: 11)
         hint.textColor = AppTheme.secondaryText
 
@@ -319,7 +320,7 @@ final class PreferencesWindowController: NSWindowController {
         allowlistCheckbox.action = #selector(allowlistChanged)
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("AppColumn"))
-        column.title = "应用"
+        column.title = L("应用", "App")
         exceptionListTableView.addTableColumn(column)
         exceptionListTableView.headerView = nil
         exceptionListTableView.rowHeight = 40
@@ -339,14 +340,14 @@ final class PreferencesWindowController: NSWindowController {
         scroll.translatesAutoresizingMaskIntoConstraints = false
         _ = scroll
 
-        let addButton = NSButton(title: "添加应用…", target: self, action: #selector(addException))
+        let addButton = NSButton(title: L("添加应用…", "Add App…"), target: self, action: #selector(addException))
         addButton.bezelStyle = .rounded
         addButton.controlSize = .regular
-        let removeButton = NSButton(title: "移除", target: self, action: #selector(removeSelectedException))
+        let removeButton = NSButton(title: L("移除", "Remove"), target: self, action: #selector(removeSelectedException))
         removeButton.bezelStyle = .rounded
         removeButton.controlSize = .regular
 
-        let hint = NSTextField(labelWithString: "例外应用可以单独覆盖反向、平滑和三个滑杆参数。双击条目编辑覆盖项。")
+        let hint = NSTextField(labelWithString: L("例外应用可以单独覆盖反向、平滑和三个滑杆参数。双击条目编辑覆盖项。", "Exceptions can override reverse, smoothing and the three sliders per app. Double-click an entry to edit."))
         hint.font = AppTheme.font(ofSize: 11)
         hint.textColor = AppTheme.secondaryText
 
@@ -512,8 +513,8 @@ final class PreferencesWindowController: NSWindowController {
     private func updatePermissionHint() {
         let granted = AXIsProcessTrusted()
         permissionLabel.stringValue = granted
-            ? "辅助功能权限已授予，事件拦截正常工作。"
-            : "尚未授予辅助功能权限：请打开 系统设置 > 隐私与安全性 > 辅助功能，允许 ScrollLab 后自动生效。"
+            ? L("辅助功能权限已授予，事件拦截正常工作。", "Accessibility permission granted. Event interception is working.")
+            : L("尚未授予辅助功能权限：请打开 系统设置 > 隐私与安全性 > 辅助功能，允许 ScrollLab 后自动生效。", "Accessibility permission not granted. Open System Settings > Privacy & Security > Accessibility and allow ScrollLab; it takes effect automatically.")
         permissionLabel.textColor = granted ? AppTheme.secondaryText : AppTheme.accent
     }
 
@@ -601,9 +602,10 @@ extension PreferencesWindowController: NSTableViewDataSource, NSTableViewDelegat
         let nameField = NSTextField(labelWithString: exception.name)
         nameField.font = AppTheme.font(ofSize: 13, weight: .medium)
         nameField.textColor = AppTheme.primaryText
-        let modeField = NSTextField(labelWithString: exception.inherit ? "继承全局" : "自定义")
+        let usesGlobal = exception.reverseMode == .global && exception.smoothMode == .global && exception.inherit
+        let modeField = NSTextField(labelWithString: usesGlobal ? L("继承全局", "Uses Global") : L("自定义", "Custom"))
         modeField.font = AppTheme.font(ofSize: 11)
-        modeField.textColor = exception.inherit ? AppTheme.secondaryText : AppTheme.accent
+        modeField.textColor = usesGlobal ? AppTheme.secondaryText : AppTheme.accent
 
         cell.addArrangedSubview(iconView)
         cell.addArrangedSubview(nameField)

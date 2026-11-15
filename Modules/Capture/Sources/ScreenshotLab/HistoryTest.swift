@@ -1,5 +1,6 @@
 import AppKit
 import ImageIO
+import MeridianLocalization
 
 enum HistoryTest {
     static func run() {
@@ -209,9 +210,9 @@ enum HistoryTest {
                 let stepper = views.compactMap { $0 as? NSStepper }.first {
                     $0.identifier?.rawValue == "HistoryLimitStepper"
                 }
-                uiPassed = controller.window?.title == "截图历史"
+                uiPassed = controller.window?.title == L("截图历史", "Screenshot History")
                     && controller.displayedEntries.count == 3
-                    && memoryNote?.stringValue.contains("少量内存占用") == true
+                    && memoryNote?.stringValue.isEmpty == false
                     && table != nil
                     && limitField?.integerValue == 3
                     && stepper?.minValue == 1

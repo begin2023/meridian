@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import MeridianLocalization
 
 // CPU 模块:总占用 + 每核占用曲线 + 占用最高的进程。
 final class CPUModule: BaseModule {
@@ -164,7 +165,7 @@ final class CPUModule: BaseModule {
         graph.heightAnchor.constraint(equalToConstant: 64).isActive = true
 
         // 每核条形(两列)
-        let coresTitle = NSTextField(labelWithString: "每核占用")
+        let coresTitle = NSTextField(labelWithString: L("每核占用", "Per-Core Usage"))
         coresTitle.font = AppTheme.font(ofSize: 11, weight: .medium)
         coresTitle.textColor = AppTheme.secondaryText
         let coresContainer = NSStackView()
@@ -173,7 +174,7 @@ final class CPUModule: BaseModule {
         coresContainer.translatesAutoresizingMaskIntoConstraints = false
 
         // Top 进程
-        let processList = ProcessListView(title: "占用最高的进程", limit: 5)
+        let processList = ProcessListView(title: L("占用最高的进程", "Top Processes"), limit: 5)
 
         stack.addArrangedSubview(header)
         stack.setCustomSpacing(12, after: header)

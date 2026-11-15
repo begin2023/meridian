@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import ImageIO
+import MeridianLocalization
 import Vision
 import VisionKit
 
@@ -19,11 +20,11 @@ enum OCRError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noText:
-            return "没有在当前截图中识别到文字。"
+            return L("没有在当前截图中识别到文字。", "No text was found in this screenshot.")
         case .timedOut:
-            return "文字识别超过 45 秒，请重试或裁剪为较小区域。"
+            return L("文字识别超过 45 秒，请重试或裁剪为较小区域。", "Text recognition took longer than 45 seconds. Try again or crop to a smaller area.")
         case .recognitionFailed(let message):
-            return "文字识别失败：\(message)"
+            return L("文字识别失败：\(message)", "Text recognition failed: \(message)")
         }
     }
 }
