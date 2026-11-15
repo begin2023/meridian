@@ -241,7 +241,8 @@ final class AppCoordinator: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminating else { return .terminateNow }
         terminating = true
-        // 硬件状态先还原：风扇交还系统、撤销上采样与虚拟屏、恢复 gamma
+        // 硬件状态先还原：风扇交还系统自动、显示器回到接管前的分辨率/HiDPI 与 HDR、
+        // 撤销虚拟屏、恢复 gamma 与夜览；滚动等事件 tap 由各模块 stop 移除。
         thermal?.stop()
         display?.stop()
         pointer?.stop()

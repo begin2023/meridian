@@ -89,9 +89,22 @@ final class RootSMC {
         return (0..<size).map { output.load(fromByteOffset: offData + $0, as: UInt8.self) }
     }
 
+    /// 新版协议（macOS 26 AppleSMCKeysEndpoint）的 keyinfo（command 0）在用户态与
+    /// root 下都返回 BadArgument（本机实测 0xe00002c2），不能作为写入的硬依赖：
+    /// 先查真实类型，查不到再按已知布局兜底（转速键 4 字节 float 小端，
+    /// FNum/F{n}Md 1 字节）。未知键返回 nil，保持与旧版一致的保守行为。
+    func layout(_ key: String) -> (size: Int, type: String)? {
+        if let info = keyInfo(key) { return info }
+        if key == "FNum" || key.hasSuffix("Md") { return (1, "ui8") }
+        switch key.suffix(2) {
+        case "Mn", "Mx", "Tg", "Ac", "Sf": return (4, "flt ")
+        default: return nil
+        }
+    }
+
     func readRPM(_ key: String) -> Double? {
-        guard let info = keyInfo(key), let bytes = readBytes(key, size: info.size) else { return nil }
-        return FanRPMCodec.decode(bytes, type: info.type)
+        guard let layout = layout(key), let bytes = readBytes(key, size: layout.size) else { return nil }
+        return FanRPMCodec.decode(bytes, type: layout.type)
     }
 
     func keyInfo(_ key: String) -> (size: Int, type: String)? {
@@ -107,12 +120,11 @@ final class RootSMC {
 
     /// 原始字节写入（模式键 F{n}Md 等）。
     func writeRaw(_ key: String, byte: UInt8) -> Bool {
-        guard let info = keyInfo(key), info.size == 1, info.type.trimmingCharacters(in: .whitespaces) == "ui8" else { return false }
-        let size = info.size
-        var data = [UInt8](repeating: 0, count: size)
+        guard let layout = layout(key), layout.size == 1, layout.type.trimmingCharacters(in: .whitespaces) == "ui8" else { return false }
+        var data = [UInt8](repeating: 0, count: layout.size)
         data[0] = byte
-        guard readBytes(key, size: size) != nil else { return false }
-        guard let output = call(command: 6, key: key, dataSize: UInt32(size), value: data) else {
+        guard readBytes(key, size: layout.size) != nil else { return false }
+        guard let output = call(command: 6, key: key, dataSize: UInt32(layout.size), value: data) else {
             return false
         }
         output.deallocate()
@@ -121,9 +133,9 @@ final class RootSMC {
 
     /// 按 SMC 返回的真实类型写入，避免把 fpe2/ui16 风扇目标误当作 float。
     func writeRPM(_ key: String, value: Double) -> Bool {
-        guard let info = keyInfo(key), let data = FanRPMCodec.encode(value, type: info.type, size: info.size),
-              readBytes(key, size: info.size) != nil,
-              let output = call(command: 6, key: key, dataSize: UInt32(info.size), value: data) else { return false }
+        guard let layout = layout(key), let data = FanRPMCodec.encode(value, type: layout.type, size: layout.size),
+              readBytes(key, size: layout.size) != nil,
+              let output = call(command: 6, key: key, dataSize: UInt32(layout.size), value: data) else { return false }
         output.deallocate()
         return true
     }
@@ -165,7 +177,9 @@ func tick() {
         active.insert(index)
         let current = targets[index] ?? smc.readRPM("F\(index)Ac") ?? rpm
         let next = min(max(current + min(max(rpm - current, -500), 500), range.lowerBound), range.upperBound)
-        guard smc.writeRPM("F\(index)Tg", value: next), smc.writeRaw("F\(index)Md", byte: 1) else { restore([index]); continue }
+        // 先接管手动模式再写目标转速：固件只尊重已处于 F{n}Md=1 时的 F{n}Tg 写入
+        // （旧版守护进程的实测顺序，反过来首拍会被覆盖）。
+        guard smc.writeRaw("F\(index)Md", byte: 1), smc.writeRPM("F\(index)Tg", value: next) else { restore([index]); continue }
         targets[index] = next
     }
     restore(active.subtracting(Set(limits.keys)))

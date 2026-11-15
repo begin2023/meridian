@@ -162,6 +162,9 @@ public final class DisplayEngine {
     private var suppressedNightShift = false
     private var suppressedTrueTone = false
     private var anyExternalHDR = false
+    /// 本进程首次改动前各显示器的模式与 HDR 状态；停用/退出时据此还原。
+    private var initialModes: [CGDirectDisplayID: DisplayModeInfo] = [:]
+    private var initialHDR: [CGDirectDisplayID: Bool] = [:]
 
     public init() {}
 
@@ -201,7 +204,8 @@ public final class DisplayEngine {
         rebuild(readBrightness: true)
     }
 
-    /// 退出时调用：断开虚拟屏、同步恢复 gamma 与亮度提升、还原被关掉的夜览。
+    /// 退出或停用时调用：断开虚拟屏、把本进程改过的分辨率/HiDPI 与 HDR 还原为
+    /// 接管前的状态，同步恢复 gamma 与亮度提升、还原被关掉的夜览。
     public func stop() {
         guard started else { return }
         started = false
@@ -209,11 +213,33 @@ public final class DisplayEngine {
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
         virtualController.disconnectAll()
+        restoreOriginalDisplayStates()
         SoftwareDimming.shared.restoreAllSynchronously()
         EDRKeeper.shared.deactivateAll()
         restoreNightShiftIfSuppressed()
         manager.stopMonitoringDisplayChanges()
         manager.onDisplaysChanged = nil
+        initialModes.removeAll()
+        initialHDR.removeAll()
+    }
+
+    /// 把本进程改过的显示器状态还原为首次改动前的样子：模式（分辨率/HiDPI/刷新率）
+    /// 逐屏比较后用同步配置事务切回，HDR 恢复开关。显示器已拔出或处于镜像时跳过。
+    private func restoreOriginalDisplayStates() {
+        manager.refresh()
+        let displays = manager.displays
+        for (id, mode) in initialModes {
+            guard let info = displays.first(where: { $0.identifier == id }),
+                  CGDisplayIsInMirrorSet(id) == 0, info.currentMode != mode else { continue }
+            try? ModeService.apply(mode: mode, to: id)
+        }
+        for (id, enabled) in initialHDR {
+            guard displays.contains(where: { $0.identifier == id }),
+                  HDRService.isAvailable, HDRService.supportsHDR(id),
+                  HDRService.isEnabled(id) != enabled else { continue }
+            _ = HDRService.setEnabled(enabled, for: id)
+        }
+        manager.refresh()
     }
 
     public func refresh() {
@@ -300,6 +326,8 @@ public final class DisplayEngine {
             completion(DisplayBridgeError.unsupportedMode(mode))
             return
         }
+        // 首次改动前记录原始模式，停用/退出时还原。
+        if initialModes[id] == nil { initialModes[id] = display.info.currentMode }
         let wasHDR = HDRService.isEnabled(id) == true
         let token = ModeToken()
         modeTokens[id]?.cancel()
@@ -368,6 +396,8 @@ public final class DisplayEngine {
     // MARK: HDR
 
     public func setHDR(_ enabled: Bool, for id: CGDirectDisplayID, completion: @escaping (Bool) -> Void) {
+        // 首次改动前记录原始 HDR 开关，停用/退出时还原。
+        if initialHDR[id] == nil { initialHDR[id] = HDRService.isEnabled(id) == true }
         DispatchQueue.global(qos: .userInitiated).async {
             let applied = HDRService.setEnabled(enabled, for: id)
             DispatchQueue.main.async { [weak self] in

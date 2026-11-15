@@ -36,6 +36,8 @@ final class ControlService {
     }
 
     /// 停止控制：立即过期 + 所有已知风扇 F0Md 归零，风扇即刻回到系统自控。
+    /// 停用/退出后进程可能随即结束，后台队列来不及发送，所以这里同步发送；
+    /// 守护进程收到 expiresAt=0 会立刻恢复自动模式，发送失败由 5 秒租约兜底。
     func stopControl() {
         var modes: [String: Int] = [:]
         if let update = latest {
@@ -44,7 +46,8 @@ final class ControlService {
             }
         }
         let file = FanCommand(expiresAt: 0, targets: [:], modes: modes)
-        sender.submit(file)
+        guard let data = try? JSONEncoder().encode(file) else { return }
+        _ = try? HelperSocket.request(data, label: DaemonInstaller.daemonLabel)
     }
 
     // MARK: - 预设
